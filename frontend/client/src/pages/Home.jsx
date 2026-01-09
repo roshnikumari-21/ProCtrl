@@ -40,9 +40,9 @@ const Home = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            <Link to="/join" className="w-full sm:w-auto">
+            <Link to="/candidatelogin" className="w-full sm:w-auto">
               <Button size="lg" className="px-10 h-14 w-full sm:w-64">
-                Join a Test
+                 Register / Login as Candidate
               </Button>
             </Link>
 

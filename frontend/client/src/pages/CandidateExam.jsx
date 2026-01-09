@@ -6,6 +6,7 @@ import useProctoring from "../hooks/useProctoring";
 import api from "../services/api";
 import socket from "../services/socket";
 import Editor from "@monaco-editor/react";
+import { toast } from "react-toastify";
 
 const CandidateExam = () => {
   const { attemptId } = useParams();
@@ -116,41 +117,40 @@ const CandidateExam = () => {
     }
   };
 
-const submitCode = async () => {
-  try {
-    setIsSubmitting(true);
+  const submitCode = async () => {
+    try {
+      setIsSubmitting(true);
 
-    const res = await api.post("/code/submit", {
-      attemptId,
-      questionId: currentQuestion._id,
-      code,
-      language,
-    });
+      const res = await api.post("/code/submit", {
+        attemptId,
+        questionId: currentQuestion._id,
+        code,
+        language,
+      });
 
-    const result = res.data;
+      const result = res.data;
 
-    // 🔥 THIS IS THE FIX
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion._id]: {
-        ...prev[currentQuestion._id],
-        codingAnswer: {
-          code,
-          language,
-          verdict: result.verdict,
-          passedTestCases: result.passedTestCases,
-          totalTestCases: result.totalTestCases,
-          executionTimeMs: result.executionTimeMs,
+      // 🔥 THIS IS THE FIX
+      setAnswers((prev) => ({
+        ...prev,
+        [currentQuestion._id]: {
+          ...prev[currentQuestion._id],
+          codingAnswer: {
+            code,
+            language,
+            verdict: result.verdict,
+            passedTestCases: result.passedTestCases,
+            totalTestCases: result.totalTestCases,
+            executionTimeMs: result.executionTimeMs,
+          },
         },
-      },
-    }));
-  } catch (err) {
-    alert(err.response?.data?.message || "Submission failed");
-  } finally {
-    setIsSubmittingCode(false);
-  }
-};
-
+      }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Submission failed");
+    } finally {
+      setIsSubmittingCode(false);
+    }
+  };
 
   /* ================= TIMER ================= */
   useEffect(() => {
@@ -226,7 +226,7 @@ const submitCode = async () => {
 
     setExamState((prev) => ({ ...prev, status: "submitted" }));
 
-    alert(auto ? "Time up. Exam submitted." : "Exam submitted.");
+    toast.success(auto ? "Time up. Exam submitted." : "Exam submitted.");
     navigate("/thank-you");
   };
 
