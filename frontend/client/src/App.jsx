@@ -25,6 +25,8 @@ import EditQuestion from "./admin/pages/questions/EditQuestion";
 import CreateTest from "./admin/pages/tests/CreateTest";
 import TestDetails from "./admin/pages/tests/TestDetails";
 import QuestionDetails from "./admin/pages/questions/QuestionDetails";
+import CandidateLogin from "./pages/CandidateLogin";
+import CandidateDashboard from "./pages/CandidateDashboard";
 
 function App() {
   return (
@@ -37,6 +39,8 @@ function App() {
             ======================= */}
             <Route element={<CandidateLayout />}>
               <Route path="/" element={<Home />} />
+               <Route path="/candidatelogin" element={<CandidateLogin />} />
+               <Route path="/candidatedash" element={<CandidateDashboard />} />
               <Route path="/join" element={<JoinTest />} />
               <Route path="/instructions/:testId" element={<Instructions />} />
               <Route path="/precheck/:testId" element={<PreCheck />} />
