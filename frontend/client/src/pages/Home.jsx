@@ -15,7 +15,7 @@ const Home = () => {
         <nav className="flex items-center justify-between py-4 md:py-8">
           <div className="flex items-center gap-3">
             <div className="w-10 hx-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-white/10">
-              P
+             <Link to="/">P</Link>
             </div>
             <span className="text-xl font-bold tracking-widest text-white uppercase">
               ProCtrl

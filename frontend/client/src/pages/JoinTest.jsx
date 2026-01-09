@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button, Input } from "../components/UI";
 import api from "../services/api";
 import { useExam } from "../context/ExamContext";
+import { toast } from "react-toastify";
 
 const JoinTest = () => {
   const navigate = useNavigate();
@@ -26,6 +27,10 @@ const JoinTest = () => {
     formData.testId.trim().length >= 4 &&
     formData.passcode.trim().length >= 4;
 
+  const handleError = (error) => {
+    toast.error(error.message || "An error occurred");
+  };
+
   /* ---------------- Submit ---------------- */
   const handleJoin = async (e) => {
     e.preventDefault();
@@ -44,22 +49,19 @@ const JoinTest = () => {
 
       const { attemptId, test } = res.data;
 
-const examPayload = {
-  candidate: {
-    name: formData.fullName.trim(),
-    email: formData.email.toLowerCase().trim(),
-  },
-  test,
-  attemptId,
-  status: "joined",
-};
+      const examPayload = {
+        candidate: {
+          name: formData.fullName.trim(),
+          email: formData.email.toLowerCase().trim(),
+        },
+        test,
+        attemptId,
+        status: "joined",
+      };
 
-setExamState(examPayload);
+      setExamState(examPayload);
 
-localStorage.setItem(
-  "examState",
-  JSON.stringify(examPayload)
-);
+      localStorage.setItem("examState", JSON.stringify(examPayload));
 
       setExamState({
         candidate: {
@@ -72,7 +74,6 @@ localStorage.setItem(
       });
 
       navigate(`/instructions/${formData.testId.trim()}`);
-
     } catch (err) {
       const msg =
         err.response?.data?.message ||
@@ -82,6 +83,7 @@ localStorage.setItem(
         type: "error",
         text: msg,
       });
+      handleError(err);
     } finally {
       setLoading(false);
     }
@@ -178,7 +180,7 @@ localStorage.setItem(
 
           <div className="space-y-6">
             {[
-                {
+              {
                 icon: "🔑",
                 title: "Secure Access",
                 text: "This assessment is protected by an email whitelist and a unique passcode issued by the test administrator",
@@ -197,7 +199,7 @@ localStorage.setItem(
                 icon: "⚡",
                 title: "Environment Check",
                 text: "Ensure a quiet and private environment. Background activity is monitored.",
-              }
+              },
             ].map((item, i) => (
               <div key={i} className="flex gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xl">

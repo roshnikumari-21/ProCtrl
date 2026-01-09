@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -21,10 +21,10 @@ const Sidebar = ({ onLogout }) => {
       {/* Logo */}
       <div className="h-14 flex items-center px-6 border-b border-slate-800">
         <div className="w-9 h-9 bg-white text-black rounded-lg flex items-center justify-center font-black">
-          N
+          <Link to="/">P</Link>
         </div>
         <span className="ml-3 font-black text-sm tracking-widest">
-          NexTest
+          ProCtrl
         </span>
       </div>
 
