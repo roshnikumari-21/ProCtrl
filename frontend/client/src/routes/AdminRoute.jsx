@@ -1,3 +1,5 @@
+//security wrapper: authenticated users with admin privileges can access the admin dashboard and related pages.
+
 import { Navigate, Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Input } from "../components/UI";
 import api from "../services/api";
@@ -15,6 +15,19 @@ const JoinTest = () => {
     testId: "",
     passcode: "",
   });
+
+  // Auto-fill candidate data from login
+  useEffect(() => {
+    const stored = localStorage.getItem("candidate_user");
+    if (stored) {
+      const candidate = JSON.parse(stored);
+      setFormData((prev) => ({
+        ...prev,
+        fullName: candidate.name || "",
+        email: candidate.email || "",
+      }));
+    }
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -110,6 +123,7 @@ const JoinTest = () => {
               onChange={(e) =>
                 setFormData({ ...formData, fullName: e.target.value })
               }
+              disabled
               required
             />
 
@@ -121,6 +135,7 @@ const JoinTest = () => {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
+              disabled
               required
             />
 
