@@ -30,6 +30,7 @@ import PastTests from "./admin/pages/candidate monitoring/PastTests";
 import TestMonitoring from "./admin/pages/candidate monitoring/TestMonitoring";
 import CandidateLogin from "./pages/CandidateLogin";
 import CandidateDashboard from "./pages/CandidateDashboard";
+import Results from "./pages/Results";
 
 function App() {
   return (
@@ -41,9 +42,11 @@ function App() {
                 Candidate Routes
             ======================= */}
             <Route element={<CandidateLayout />}>
+
               <Route path="/" element={<Home />} />
                <Route path="/candidatelogin" element={<CandidateLogin />} />
                <Route path="/candidatedash" element={<CandidateDashboard />} />
+                <Route path="/candidateresult" element={<Results />} />
               <Route path="/join" element={<JoinTest />} />
               <Route path="/instructions/:testId" element={<Instructions />} />
               <Route path="/precheck/:testId" element={<PreCheck />} />

@@ -16,7 +16,7 @@ const CandidateDashboard = () => {
   }, [navigate]);
 
   const handleJoinTest = () => navigate("/join");
-  const handleViewScores = () => navigate("/candidate/results");
+  const handleViewScores = () => navigate("/candidateresult");
 
   const handleLogout = () => {
     localStorage.removeItem("candidate_token");

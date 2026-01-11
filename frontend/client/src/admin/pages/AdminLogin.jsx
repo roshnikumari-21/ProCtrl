@@ -116,7 +116,7 @@ const AdminLogin = () => {
       <Card className="w-full max-w-md p-8 bg-slate-900 border border-slate-800 shadow-2xl">
         <div className="text-center mb-6">
           <div className="w-14 h-14 mx-auto mb-4 bg-white text-slate-950 rounded-xl flex items-center justify-center font-black text-xl">
-            N
+            A
           </div>
           <h2 className="text-2xl font-black text-white">
             {isLogin ? "Admin Login" : "Admin Registration"}

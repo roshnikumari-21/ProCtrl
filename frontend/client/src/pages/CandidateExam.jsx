@@ -28,17 +28,53 @@ const CandidateExam = () => {
 
   const timerRef = useRef(null);
   const videoRef = useRef(null);
+  const autoSaveTimeoutRef = useRef(null);
+  const autoSaveFailedRef = useRef(false);
 
+  /* ================= AUTO SAVE (DEBOUNCED) ================= */
   useEffect(() => {
-    if (!attemptId || examState.status !== "in_progress") return;
+    if (!attemptId || examState.status !== "in_progress") {
+      autoSaveFailedRef.current = false;
+      return;
+    }
 
-    api.post(`/attempts/save/${attemptId}`, {
-      answers: Object.entries(answers).map(([q, a]) => ({
-        question: q,
-        ...a,
-      })),
-    });
-  }, [answers]);
+    // Don't retry if auto-save already failed (attempt likely ended)
+    if (autoSaveFailedRef.current) return;
+
+    // Clear previous timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout to save after 2 seconds of no changes
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      api
+        .post(`/attempts/save/${attemptId}`, {
+          answers: Object.entries(answers).map(([q, a]) => ({
+            question: q,
+            ...a,
+          })),
+        })
+        .catch((err) => {
+          const errorMsg = err.response?.data?.message || err.message;
+          console.error("Auto-save failed:", errorMsg);
+
+          // If attempt is invalid, mark to stop retrying
+          if (
+            errorMsg === "Invalid attempt" ||
+            errorMsg === "Test is not in progress"
+          ) {
+            autoSaveFailedRef.current = true;
+          }
+        });
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [answers, attemptId, examState.status]);
 
   /* ================= SAFETY GUARD ================= */
   useEffect(() => {
@@ -191,43 +227,32 @@ const CandidateExam = () => {
     }));
   };
 
-  /* ================= AUTO SAVE ================= */
-  useEffect(() => {
-    if (examState.status !== "in_progress") return;
-    if (!attemptId) return;
-
-    const interval = setInterval(() => {
-      api.post(`/attempts/save/${attemptId}`, {
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (auto = false) => {
+    try {
+      await api.post(`/attempts/submit/${attemptId}`, {
         answers: Object.entries(answers).map(([q, a]) => ({
           question: q,
           answer: a,
         })),
       });
-    }, 5000);
 
-    return () => clearInterval(interval);
-  }, [answers, attemptId, examState.status]);
+      socket.emit("candidate:submit", {
+        attemptId,
+        testId: test.testId,
+      });
 
-  /* ================= SUBMIT ================= */
-  const handleSubmit = async (auto = false) => {
-    await api.post(`/attempts/submit/${attemptId}`, {
-      answers: Object.entries(answers).map(([q, a]) => ({
-        question: q,
-        answer: a,
-      })),
-    });
+      localStorage.removeItem("examState");
 
-    socket.emit("candidate:submit", {
-      attemptId,
-      testId: test.testId,
-    });
+      setExamState((prev) => ({ ...prev, status: "submitted" }));
 
-    localStorage.removeItem("examState");
-
-    setExamState((prev) => ({ ...prev, status: "submitted" }));
-
-    toast.success(auto ? "Time up. Exam submitted." : "Exam submitted.");
-    navigate("/thank-you");
+      toast.success(auto ? "Time up. Exam submitted." : "Exam submitted.");
+      navigate("/thank-you");
+    } catch (err) {
+      console.error("Submit failed:", err);
+      const errorMsg = err.response?.data?.message || "Failed to submit exam";
+      toast.error(errorMsg);
+    }
   };
 
   const currentQuestion = questions[currentIdx];
