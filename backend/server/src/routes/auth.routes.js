@@ -7,9 +7,6 @@ import { sendWelcomeEmail } from "../utils/sendEmail.js";
 
 const router = express.Router();
 
-/* ===============================
-   ADMIN REGISTER
-=============================== */
 router.post("/admin/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -23,28 +20,35 @@ router.post("/admin/register", async (req, res) => {
     }
 
     if (password.length < 8) {
-      return res.status(400).json({
-        message: "Password must be at least 8 characters",
-      });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
     }
 
     const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(409).json({ message: "Email already registered" });
-    }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    if (existing) {
+      if (existing.role === "admin") {
+        return res
+          .status(409)
+          .json({ message: "User already registered as admin" });
+      }
+
+      return res.status(409).json({
+        message:
+          "This email is already registered as a candidate. Please use a different email to register as admin.",
+      });
+    }
 
     const admin = await User.create({
       name,
       email,
-      password: hashedPassword,
+      password: await bcrypt.hash(password, 12),
       role: "admin",
       authProvider: "local",
       emailVerified: true,
     });
 
-    // non-blocking email
     sendWelcomeEmail(email, name).catch(console.error);
 
     const token = jwt.sign(
@@ -68,6 +72,7 @@ router.post("/admin/register", async (req, res) => {
     res.status(500).json({ message: "Registration failed" });
   }
 });
+
 
 /* ===============================
    ADMIN LOGIN
@@ -111,9 +116,6 @@ router.post("/admin/login", async (req, res) => {
   }
 });
 
-/* ===============================
-   CANDIDATE REGISTER
-=============================== */
 router.post("/candidate/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -127,28 +129,35 @@ router.post("/candidate/register", async (req, res) => {
     }
 
     if (password.length < 8) {
-      return res.status(400).json({
-        message: "Password must be at least 8 characters",
-      });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
     }
 
     const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(409).json({ message: "Email already registered" });
-    }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    if (existing) {
+      if (existing.role === "candidate") {
+        return res
+          .status(409)
+          .json({ message: "User already registered as candidate" });
+      }
+
+      return res.status(409).json({
+        message:
+          "This email is already registered as an admin. Please use a different email to register as candidate.",
+      });
+    }
 
     const candidate = await User.create({
       name,
       email,
-      password: hashedPassword,
+      password: await bcrypt.hash(password, 12),
       role: "candidate",
       authProvider: "local",
       emailVerified: true,
     });
 
-    // non-blocking email
     sendWelcomeEmail(email, name).catch(console.error);
 
     const token = jwt.sign(
@@ -172,6 +181,7 @@ router.post("/candidate/register", async (req, res) => {
     res.status(500).json({ message: "Registration failed" });
   }
 });
+
 
 /* ===============================
    CANDIDATE LOGIN

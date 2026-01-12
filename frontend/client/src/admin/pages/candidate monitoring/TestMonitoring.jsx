@@ -1,32 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTestById } from "../../services/testApi";
+import { getAttemptsByTest } from "../../services/monitoringApi";
 import { Card, Button } from "../../../components/UI";
 
 const TestMonitoring = () => {
-  const { id } = useParams();
+  const { id: testId } = useParams();
   const navigate = useNavigate();
 
   const [test, setTest] = useState(null);
+  const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [tab, setTab] = useState("not_started");
 
+  /* ===============================
+     FETCH TEST + ATTEMPTS
+  =============================== */
   useEffect(() => {
-    const fetchTest = async () => {
+    const fetchData = async () => {
       try {
-        const res = await getTestById(id);
-        setTest(res.data);
+        const [testRes, attemptRes] = await Promise.all([
+          getTestById(testId),
+          getAttemptsByTest(testId),
+        ]);
+
+        setTest(testRes.data);
+        setAttempts(attemptRes.data);
       } catch (err) {
-        console.error("Failed to load test", err);
+        console.error("Failed to load monitoring data", err);
         navigate("/admin/monitoring");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTest();
-  }, [id, navigate]);
+    fetchData();
+  }, [testId, navigate]);
 
   const isActiveTest = useMemo(() => {
     if (!test) return false;
@@ -34,24 +44,29 @@ const TestMonitoring = () => {
   }, [test]);
 
   /* ===============================
-     CANDIDATE GROUPING
+     GROUP ATTEMPTS
   =============================== */
-  const { notStarted, submitted } = useMemo(() => {
-    if (!test) return { notStarted: [], submitted: [] };
+  const { notStarted, active, submitted } = useMemo(() => {
+    if (!test) return { notStarted: [], active: [], submitted: [] };
 
-    const ns = [];
-    const sub = [];
+    const startedEmails = new Set(
+      attempts.map((a) => a.candidateEmail)
+    );
 
-    test.allowedCandidates.forEach((c) => {
-      if (c.hasAttempted) sub.push(c);
-      else ns.push(c);
-    });
+    const ns = test.allowedCandidates.filter(
+      (c) => !startedEmails.has(c.email)
+    );
 
-    return { notStarted: ns, submitted: sub };
-  }, [test]);
+    const act = attempts.filter(
+      (a) => a.status === "in_progress"
+    );
 
-  // Placeholder — will be replaced by TestAttempt data
-  const activeCandidates = [];
+    const sub = attempts.filter(
+      (a) => a.status === "submitted"
+    );
+
+    return { notStarted: ns, active: act, submitted: sub };
+  }, [test, attempts]);
 
   if (loading) {
     return (
@@ -68,7 +83,9 @@ const TestMonitoring = () => {
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black">{test.title}</h1>
+          <h1 className="text-2xl font-black">
+            {test.title}
+          </h1>
           <p className="text-sm text-slate-400">
             Test ID: {test.testId}
           </p>
@@ -109,7 +126,7 @@ const TestMonitoring = () => {
             variant={tab === "active" ? "primary" : "ghost"}
             onClick={() => setTab("active")}
           >
-            Active ({activeCandidates.length})
+            Active ({active.length})
           </Button>
         )}
 
@@ -123,27 +140,36 @@ const TestMonitoring = () => {
 
       {/* CANDIDATE LIST */}
       <div className="grid grid-cols-2 gap-6">
-        {/* NOT STARTED / UNATTEMPTED */}
+        {/* NOT STARTED */}
         {tab === "not_started" &&
           notStarted.map((c, i) => (
-            <Card
-              key={i}
-              className="p-5 hover:border-slate-600 transition"
-            >
+            <Card key={i} className="p-5">
               <p className="font-semibold">{c.email}</p>
               <p className="text-sm text-slate-400 mt-1">
                 Status:{" "}
-                {isActiveTest ? "Not Started" : "Unattempted"}
+                {isActiveTest
+                  ? "Not Started"
+                  : "Unattempted"}
               </p>
             </Card>
           ))}
 
-        {/* ACTIVE (PLACEHOLDER) */}
+        {/* ACTIVE */}
         {tab === "active" &&
-          activeCandidates.map((c) => (
-            <Card key={c.attemptId} className="p-5">
-              <p className="font-semibold">{c.email}</p>
-              <p className="text-sm text-blue-400">
+          active.map((a) => (
+            <Card
+              key={a._id}
+              className="p-5 cursor-pointer hover:border-blue-500 transition"
+              onClick={() =>
+                navigate(
+                  `/admin/monitoring/attempts/${a._id}`
+                )
+              }
+            >
+              <p className="font-semibold">
+                {a.candidateEmail}
+              </p>
+              <p className="text-sm text-blue-400 mt-1">
                 In Progress
               </p>
             </Card>
@@ -151,17 +177,19 @@ const TestMonitoring = () => {
 
         {/* SUBMITTED */}
         {tab === "submitted" &&
-          submitted.map((c, i) => (
+          submitted.map((a) => (
             <Card
-              key={i}
-              className="p-5 cursor-pointer hover:border-blue-500 transition"
+              key={a._id}
+              className="p-5 cursor-pointer hover:border-green-500 transition"
               onClick={() =>
                 navigate(
-                  `/admin/monitoring/attempts/${test._id}/${c.email}`
+                  `/admin/monitoring/attempts/${a._id}`
                 )
               }
             >
-              <p className="font-semibold">{c.email}</p>
+              <p className="font-semibold">
+                {a.candidateEmail}
+              </p>
               <p className="text-sm text-green-400 mt-1">
                 Submitted
               </p>
@@ -173,3 +201,4 @@ const TestMonitoring = () => {
 };
 
 export default TestMonitoring;
+

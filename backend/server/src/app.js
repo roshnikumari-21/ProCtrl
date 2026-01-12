@@ -6,6 +6,7 @@ import questionRoutes from "./routes/question.routes.js";
 import testRoutes from "./routes/test.routes.js";
 import attemptRoutes from "./routes/attempt.routes.js";
 import codeRoutes from "./routes/code.routes.js";
+import adminMonitoringRoutes from "./routes/adminMonitoring.routes.js";
 import { initCppWorker } from './services/codeRunner/evaluateCpp.js'; // Adjust path
 
 
@@ -35,6 +36,7 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/attempts", attemptRoutes);
 app.use("/api/code", codeRoutes);
+app.use("/api/admin/monitoring", adminMonitoringRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "OK" });

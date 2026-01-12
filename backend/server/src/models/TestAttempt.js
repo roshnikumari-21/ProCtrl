@@ -6,8 +6,16 @@ const answerSchema = new mongoose.Schema({
     ref: "Question",
     required: true,
   },
-  answer: mongoose.Schema.Types.Mixed,
+
+  mcqAnswer: Number,
+  descriptiveAnswer: String,
+
+  codingAnswer: {
+    code: String,
+    language: String,
+  },
 });
+
 
 const violationSchema = new mongoose.Schema({
   type: String,          // tab-switch, face-not-detected, audio

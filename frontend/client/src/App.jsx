@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ExamProvider } from "./context/ExamContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 /* Candidate */
 import Home from "./pages/Home";
@@ -31,6 +33,7 @@ import TestMonitoring from "./admin/pages/candidate monitoring/TestMonitoring";
 import CandidateLogin from "./pages/CandidateLogin";
 import CandidateDashboard from "./pages/CandidateDashboard";
 import Results from "./pages/Results";
+import CandidateDetails from "./admin/pages/candidate monitoring/CandidateDetails";
 
 function App() {
   return (
@@ -76,11 +79,22 @@ function App() {
                   <Route path="active" element={<ActiveTests />} />
                   <Route path="past" element={<PastTests />} />
                 </Route>
+                <Route path="monitoring/attempts/:attemptId" element={<CandidateDetails />} />
                 <Route path="monitoring/tests/:id" element={<TestMonitoring />} />
                 <Route path="results" element={<TestResults />} />
               </Route>
             </Route>
           </Routes>
+          <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="dark"
+      />
         </ExamProvider>
       </GoogleOAuthProvider>
     </BrowserRouter>

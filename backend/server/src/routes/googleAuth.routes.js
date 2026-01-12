@@ -9,39 +9,32 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 router.post("/google", async (req, res) => {
   try {
     const { token } = req.body;
-
-    /* ---------- Validate request ---------- */
     if (!token) {
       return res.status(400).json({ message: "Google token is required" });
     }
 
-    /* ---------- Verify Google token ---------- */
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const payload = ticket.getPayload();
-    const { sub, email, name } = payload;
+    const { sub, email, name } = ticket.getPayload();
 
     if (!email) {
-      return res
-        .status(400)
-        .json({ message: "Google account email not found" });
+      return res.status(400).json({ message: "Google account email not found" });
     }
 
-    /* ---------- Find existing user ---------- */
-    let user = await User.findOne({ email });
+    const existing = await User.findOne({ email });
 
-    /* ---------- Prevent auth-provider conflict ---------- */
-    if (user && user.authProvider === "local") {
-      return res.status(409).json({
+    if (existing && existing.role !== "admin") {
+      return res.status(403).json({
         message:
-          "This email is registered with password login. Please use email & password.",
+          "This email is already registered as a candidate. Please use a different email to login as admin.",
       });
     }
 
-    /* ---------- Create admin if new ---------- */
+    let user = existing;
+
     if (!user) {
       user = await User.create({
         name: name || email.split("@")[0],
@@ -51,26 +44,19 @@ router.post("/google", async (req, res) => {
         googleId: sub,
         emailVerified: true,
       });
-    } else {
-      /* ---------- Update googleId if needed ---------- */
-      if (!user.googleId || user.googleId !== sub) {
-        user.googleId = sub;
-        await user.save();
-      }
+    } else if (!user.googleId) {
+      user.googleId = sub;
+      user.authProvider = "google";
+      await user.save();
     }
 
-    /* ---------- Issue JWT ---------- */
     const jwtToken = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    /* ---------- Respond ---------- */
-    res.status(200).json({
+    res.json({
       token: jwtToken,
       user: {
         id: user._id,
@@ -80,47 +66,42 @@ router.post("/google", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Google authentication error:", err);
+    console.error("Google admin auth error:", err);
     res.status(401).json({ message: "Google authentication failed" });
   }
 });
 
+
+
 router.post("/google/candidate", async (req, res) => {
   try {
     const { token } = req.body;
-
-    /* ---------- Validate request ---------- */
     if (!token) {
       return res.status(400).json({ message: "Google token is required" });
     }
 
-    /* ---------- Verify Google token ---------- */
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const payload = ticket.getPayload();
-    const { sub, email, name } = payload;
+    const { sub, email, name } = ticket.getPayload();
 
     if (!email) {
-      return res
-        .status(400)
-        .json({ message: "Google account email not found" });
+      return res.status(400).json({ message: "Google account email not found" });
     }
 
-    /* ---------- Find existing user ---------- */
-    let user = await User.findOne({ email });
+    const existing = await User.findOne({ email });
 
-    /* ---------- Prevent auth-provider conflict ---------- */
-    if (user && user.authProvider === "local") {
-      return res.status(409).json({
+    if (existing && existing.role !== "candidate") {
+      return res.status(403).json({
         message:
-          "This email is registered with password login. Please use email & password.",
+          "This email is already registered as an admin. Please use a different email to login as candidate.",
       });
     }
 
-    /* ---------- Create candidate if new ---------- */
+    let user = existing;
+
     if (!user) {
       user = await User.create({
         name: name || email.split("@")[0],
@@ -130,26 +111,19 @@ router.post("/google/candidate", async (req, res) => {
         googleId: sub,
         emailVerified: true,
       });
-    } else {
-      /* ---------- Update googleId if needed ---------- */
-      if (!user.googleId || user.googleId !== sub) {
-        user.googleId = sub;
-        await user.save();
-      }
+    } else if (!user.googleId) {
+      user.googleId = sub;
+      user.authProvider = "google";
+      await user.save();
     }
 
-    /* ---------- Issue JWT ---------- */
     const jwtToken = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    /* ---------- Respond ---------- */
-    res.status(200).json({
+    res.json({
       token: jwtToken,
       user: {
         id: user._id,
@@ -159,9 +133,10 @@ router.post("/google/candidate", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Google candidate authentication error:", err);
+    console.error("Google candidate auth error:", err);
     res.status(401).json({ message: "Google authentication failed" });
   }
 });
+
 
 export default router;
