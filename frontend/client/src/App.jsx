@@ -54,7 +54,7 @@ function App() {
               <Route path="/instructions/:testId" element={<Instructions />} />
               <Route path="/precheck/:testId" element={<PreCheck />} />
               <Route path="/exam/:attemptId" element={<CandidateExam />} />
-              <Route path="/submitted" element={<SubmissionSuccess />} />
+              <Route path="/thank-you" element={<SubmissionSuccess />} />
             </Route>
 
             {/* =======================

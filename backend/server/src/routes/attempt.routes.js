@@ -3,8 +3,81 @@ import Test from "../models/Test.js";
 import TestAttempt from "../models/TestAttempt.js";
 import validateEmail from "../utils/validateEmail.js";
 import bcrypt from "bcryptjs";
+import {authorize} from "../middleware/role.middleware.js";
+import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+/**
+ * ===============================
+ * GET MY ATTEMPTS (CANDIDATE)
+ * ===============================
+ * - Returns all attempts by logged-in candidate
+ * - Secure: JWT + role enforced
+ */
+
+import User from "../models/User.js";
+
+
+router.get(
+  "/my-attempts",
+  authenticate,
+  authorize("candidate"),
+  async (req, res) => {
+    try {
+      /* --------------------------------
+         1. Get candidate email from user
+      -------------------------------- */
+      const user = await User.findById(req.user.id).select("email role");
+
+      if (!user || user.role !== "candidate") {
+        return res.status(403).json({
+          message: "Unauthorized access",
+        });
+      }
+
+      /* --------------------------------
+         2. Fetch attempts
+      -------------------------------- */
+      const attempts = await TestAttempt.find({
+        candidateEmail: user.email,
+      })
+        .populate("test", "title duration")
+        .sort({ createdAt: -1 });
+
+      /* --------------------------------
+         3. Format response
+      -------------------------------- */
+      const formatted = attempts.map((a) => ({
+        _id: a._id,
+        status: a.status,
+        startedAt: a.startedAt,
+        submittedAt: a.submittedAt,
+
+        test: {
+          title: a.test?.title || "Assessment",
+          duration: a.test?.duration ?? null,
+        },
+
+        score: a.score ?? null,
+        totalMarks: a.totalMarks ?? null,
+        violations: Array.isArray(a.violations)
+          ? a.violations.length
+          : 0,
+      }));
+
+      res.json(formatted);
+    } catch (err) {
+      console.error("Fetch my attempts error:", err);
+      res.status(500).json({
+        message: "Failed to fetch attempts",
+      });
+    }
+  }
+);
+
+
+
 
 /**
  * ===============================

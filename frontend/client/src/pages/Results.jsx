@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
-import api from "../services/api";
+import candidateApi from "../services/candidateApi";
 import { toast } from "react-toastify";
 
 const Results = () => {
@@ -26,7 +26,7 @@ const Results = () => {
   const fetchAttempts = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/attempts/my-attempts");
+      const response = await candidateApi.get("/attempts/my-attempts");
       setAttempts(response.data || []);
     } catch (error) {
       toast.error(
