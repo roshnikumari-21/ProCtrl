@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 const CreateTest = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-const [typeFilter, setTypeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [questions, setQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -38,6 +38,15 @@ const [typeFilter, setTypeFilter] = useState("all");
       return;
     }
 
+    const hasInvalidPasscode = form.allowedCandidates.some(
+      (c) => (c.email || c.passcode) && c.passcode.length < 4
+    );
+
+    if (hasInvalidPasscode) {
+      toast.error("Passcode must be at least 4 characters");
+      return;
+    }
+
     setLoading(true);
     try {
       await createTest({
@@ -58,16 +67,14 @@ const [typeFilter, setTypeFilter] = useState("all");
   };
 
   const filteredQuestions = questions.filter((q) => {
-  const matchesSearch = q.questionText
-    .toLowerCase()
-    .includes(search.toLowerCase());
+    const matchesSearch = q.questionText
+      .toLowerCase()
+      .includes(search.toLowerCase());
 
-  const matchesType =
-    typeFilter === "all" || q.type === typeFilter;
+    const matchesType = typeFilter === "all" || q.type === typeFilter;
 
-  return matchesSearch && matchesType;
-});
-
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="max-w-6xl mx-auto p-8">
@@ -94,86 +101,83 @@ const [typeFilter, setTypeFilter] = useState("all");
             label="Active Till"
             type="datetime-local"
             value={form.activeTill}
-            onChange={(e) =>
-              setForm({ ...form, activeTill: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, activeTill: e.target.value })}
           />
         </div>
 
-       {/* QUESTION SELECTION */}
-<div>
-  <h3 className="font-bold mb-3">Select Questions</h3>
+        {/* QUESTION SELECTION */}
+        <div>
+          <h3 className="font-bold mb-3">Select Questions</h3>
 
-  {/* FILTER BAR */}
-  <div className="flex gap-3 mb-3">
-    {/* SEARCH */}
-    <input
-      type="text"
-      placeholder="Search questions..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white"
-    />
+          {/* FILTER BAR */}
+          <div className="flex gap-3 mb-3">
+            {/* SEARCH */}
+            <input
+              type="text"
+              placeholder="Search questions..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white"
+            />
 
-    {/* TYPE FILTER */}
-    <select
-      value={typeFilter}
-      onChange={(e) => setTypeFilter(e.target.value)}
-      className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white"
-    >
-      <option value="all">All</option>
-      <option value="mcq">MCQ</option>
-      <option value="descriptive">Descriptive</option>
-      <option value="coding">Coding</option>
-    </select>
-  </div>
-
-  {/* QUESTION LIST */}
-  <div
-    className="max-h-80 overflow-y-auto border border-slate-800 rounded p-4 space-y-2
-               scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-900"
-  >
-    {filteredQuestions.length === 0 ? (
-      <p className="text-sm text-slate-400 text-center">
-        No questions match your search
-      </p>
-    ) : (
-      filteredQuestions.map((q) => (
-        <label
-          key={q._id}
-          className="flex items-start gap-3 text-sm cursor-pointer hover:bg-slate-800/50 p-2 rounded"
-        >
-          <input
-            type="checkbox"
-            checked={selectedQuestions.includes(q._id)}
-            onChange={(e) => {
-              setSelectedQuestions((prev) =>
-                e.target.checked
-                  ? [...prev, q._id]
-                  : prev.filter((id) => id !== q._id)
-              );
-            }}
-          />
-
-          <div className="flex-1">
-            <p className="font-medium text-white line-clamp-2">
-              {q.questionText}
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {q.type.toUpperCase()} • {q.marks} marks
-            </p>
+            {/* TYPE FILTER */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white"
+            >
+              <option value="all">All</option>
+              <option value="mcq">MCQ</option>
+              <option value="descriptive">Descriptive</option>
+              <option value="coding">Coding</option>
+            </select>
           </div>
-        </label>
-      ))
-    )}
-  </div>
 
-  {/* SELECTED COUNT */}
-  <p className="text-xs text-slate-400 mt-2">
-    Selected {selectedQuestions.length} question(s)
-  </p>
-</div>
+          {/* QUESTION LIST */}
+          <div
+            className="max-h-80 overflow-y-auto border border-slate-800 rounded p-4 space-y-2
+               scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-900"
+          >
+            {filteredQuestions.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center">
+                No questions match your search
+              </p>
+            ) : (
+              filteredQuestions.map((q) => (
+                <label
+                  key={q._id}
+                  className="flex items-start gap-3 text-sm cursor-pointer hover:bg-slate-800/50 p-2 rounded"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedQuestions.includes(q._id)}
+                    onChange={(e) => {
+                      setSelectedQuestions((prev) =>
+                        e.target.checked
+                          ? [...prev, q._id]
+                          : prev.filter((id) => id !== q._id)
+                      );
+                    }}
+                  />
 
+                  <div className="flex-1">
+                    <p className="font-medium text-white line-clamp-2">
+                      {q.questionText}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {q.type.toUpperCase()} • {q.marks} marks
+                    </p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+
+          {/* SELECTED COUNT */}
+          <p className="text-xs text-slate-400 mt-2">
+            Selected {selectedQuestions.length} question(s)
+          </p>
+        </div>
 
         {/* ALLOWED CANDIDATES */}
         <div>

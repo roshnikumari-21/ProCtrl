@@ -271,7 +271,7 @@ const CandidateExam = () => {
       setExamState((prev) => ({ ...prev, status: "submitted" }));
 
       toast.success(auto ? "Time up. Exam submitted." : "Exam submitted.");
-      navigate("/submitted");
+      navigate("/thank-you");
     } catch (err) {
       console.error("Submit failed:", err);
       const errorMsg = err.response?.data?.message || "Failed to submit exam";

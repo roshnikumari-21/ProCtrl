@@ -31,8 +31,7 @@ const JoinTest = () => {
     }
   }, []);
 
-  const isEmailValid = (email) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isEmailValid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const isFormValid =
     formData.fullName.trim().length >= 3 &&
@@ -94,20 +93,14 @@ const JoinTest = () => {
         {/* LEFT: FORM */}
         <div className="lg:col-span-3 bg-slate-900 p-6 sm:p-10 md:p-14">
           <div className="mb-10">
-            <h1 className="text-3xl font-black text-white mb-2">
-              Join Test
-            </h1>
+            <h1 className="text-3xl font-black text-white mb-2">Join Test</h1>
             <p className="text-slate-500 font-medium">
               Authentication required to access the secure room.
             </p>
           </div>
 
-          <form onSubmit={handleJoin} className="space-y-6">
-            <Input
-              label="Full Legal Name"
-              value={formData.fullName}
-              disabled
-            />
+          <form onSubmit={handleJoin} className="space-y-6" autoComplete="off">
+            <Input label="Full Legal Name" value={formData.fullName} disabled />
 
             <Input
               label="Official Email Address"
@@ -124,6 +117,7 @@ const JoinTest = () => {
                 setFormData({ ...formData, testId: e.target.value })
               }
               required
+              autoComplete="off"
             />
 
             <Input
@@ -135,6 +129,7 @@ const JoinTest = () => {
                 setFormData({ ...formData, passcode: e.target.value })
               }
               required
+              autoComplete="new-password"
             />
 
             <Button
@@ -167,26 +162,22 @@ const JoinTest = () => {
               {
                 icon: "🔑",
                 title: "Secure Access",
-                text:
-                  "This assessment is protected by an email whitelist and a unique passcode issued by the administrator.",
+                text: "This assessment is protected by an email whitelist and a unique passcode issued by the administrator.",
               },
               {
                 icon: "📷",
                 title: "Hardware Authorization",
-                text:
-                  "Camera and microphone access will be required before the exam begins.",
+                text: "Camera and microphone access will be required before the exam begins.",
               },
               {
                 icon: "🚫",
                 title: "Session Integrity",
-                text:
-                  "Refreshing or navigating away after joining may invalidate your attempt.",
+                text: "Refreshing or navigating away after joining may invalidate your attempt.",
               },
               {
                 icon: "⚡",
                 title: "Environment Check",
-                text:
-                  "Ensure a quiet and private environment. Background activity is monitored.",
+                text: "Ensure a quiet and private environment. Background activity is monitored.",
               },
             ].map((item, i) => (
               <div key={i} className="flex gap-4">
@@ -216,4 +207,3 @@ const JoinTest = () => {
 };
 
 export default JoinTest;
-
