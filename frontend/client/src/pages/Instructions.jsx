@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Badge } from "../components/UI";
 import { useExam } from "../context/ExamContext";
+import { toastInfo, toastError } from "../utils/toast";
 
 const Instructions = () => {
   const navigate = useNavigate();
@@ -14,6 +15,10 @@ const Instructions = () => {
   /* ---------------- Protect direct access / refresh ---------------- */
   useEffect(() => {
     if (!test || examState.status !== "joined") {
+      toastError(
+        null,
+        "Exam session not found. Please rejoin the test."
+      );
       navigate("/join");
     }
   }, [test, examState, navigate]);
@@ -29,10 +34,21 @@ const Instructions = () => {
     {}
   );
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 pb-20 selection:bg-blue-500/30">   
-       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16">
+  const handleProceed = () => {
+    if (!agreed) {
+      toastInfo(
+        "Please acknowledge the monitoring and exam rules before proceeding"
+      );
+      return;
+    }
 
+    toastInfo("Proceeding to system checks");
+    navigate(`/precheck/${testId}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-200 pb-20 selection:bg-blue-500/30">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div className="space-y-3">
@@ -70,7 +86,11 @@ const Instructions = () => {
             {[
               { type: "MCQ", count: questionStats.mcq || 0, icon: "📋" },
               { type: "Coding", count: questionStats.coding || 0, icon: "⚡" },
-              { type: "Descriptive", count: questionStats.descriptive || 0, icon: "📝" },
+              {
+                type: "Descriptive",
+                count: questionStats.descriptive || 0,
+                icon: "📝",
+              },
             ].map((item, i) => (
               <div
                 key={i}
@@ -90,7 +110,6 @@ const Instructions = () => {
 
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-12">
-
           {/* PROTOCOLS */}
           <div className="md:col-span-3 space-y-8">
             <section>
@@ -105,7 +124,10 @@ const Instructions = () => {
                   "Do not resize, minimize, or exit the browser window.",
                   "Navigation is locked for the duration of the test.",
                 ].map((rule, idx) => (
-                  <li key={idx} className="flex gap-4 text-sm text-slate-400">
+                  <li
+                    key={idx}
+                    className="flex gap-4 text-sm text-slate-400"
+                  >
                     <span className="text-slate-700 font-bold">•</span>
                     {rule}
                   </li>
@@ -144,7 +166,8 @@ const Instructions = () => {
               </h3>
 
               <p className="text-xs text-slate-400 mb-6">
-                This examination will be under continuous AI-assisted supervision.
+                This examination will be under continuous AI-assisted
+                supervision.
               </p>
 
               {[
@@ -152,7 +175,10 @@ const Instructions = () => {
                 "Ambient audio analysis",
                 "Tab and focus tracking",
               ].map((m, i) => (
-                <div key={i} className="text-[11px] font-bold text-slate-300 uppercase mb-3">
+                <div
+                  key={i}
+                  className="text-[11px] font-bold text-slate-300 uppercase mb-3"
+                >
                   {m}
                 </div>
               ))}
@@ -182,12 +208,7 @@ const Instructions = () => {
               Back to Join
             </Button>
 
-            <Button
-              size="lg"
-              
-              disabled={!agreed}
-              onClick={() => navigate(`/precheck/${testId}`)}
-            >
+            <Button size="lg" onClick={handleProceed}>
               Proceed
             </Button>
           </div>
@@ -202,3 +223,4 @@ const Instructions = () => {
 };
 
 export default Instructions;
+

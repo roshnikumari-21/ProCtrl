@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "../services/api";
 import { Button, Card, Input } from "../components/UI";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastError, toastSuccess, toastInfo } from "../utils/toast";
 
 const CandidateLogin = () => {
   const navigate = useNavigate();
@@ -25,12 +24,12 @@ const CandidateLogin = () => {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
-      toast.error("Email and password are required");
+      toastInfo("Email and password are required");
       return;
     }
 
     if (!isLogin && !formData.name) {
-      toast.error("Name is required for registration");
+      toastInfo("Name is required for registration");
       return;
     }
 
@@ -54,15 +53,19 @@ const CandidateLogin = () => {
 
       const res = await api.post(endpoint, payload);
 
-      // ✅ store candidate auth
       localStorage.setItem("candidate_token", res.data.token);
-      localStorage.setItem("candidate_user", JSON.stringify(res.data.user));
+      localStorage.setItem(
+        "candidate_user",
+        JSON.stringify(res.data.user)
+      );
 
-      toast.success(isLogin ? "Login successful" : "Registration successful");
+      toastSuccess(
+        isLogin ? "Login successful" : "Registration successful"
+      );
 
       navigate("/candidatedash");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Authentication failed");
+      toastError(err, "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -72,28 +75,42 @@ const CandidateLogin = () => {
      GOOGLE LOGIN (CANDIDATE)
   =============================== */
   const handleGoogleSuccess = async (response) => {
-    const googleToken = response.credential;
     setLoading(true);
 
     try {
       const res = await api.post("/auth/google/candidate", {
-        token: googleToken,
+        token: response.credential,
       });
 
       localStorage.setItem("candidate_token", res.data.token);
-      localStorage.setItem("candidate_user", JSON.stringify(res.data.user));
+      localStorage.setItem(
+        "candidate_user",
+        JSON.stringify(res.data.user)
+      );
 
-      toast.success("Google login successful");
+      toastSuccess("Google login successful");
       navigate("/candidatedash");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Google login failed");
+      toastError(err, "Google login failed");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleError = () => {
-    toast.error("Google login failed");
+    toastError(null, "Google login failed");
+  };
+
+  /* ===============================
+     TOGGLE MODE
+  =============================== */
+  const toggleMode = () => {
+    setIsLogin((prev) => !prev);
+    toastInfo(
+      !isLogin
+        ? "Switched to login"
+        : "Switched to registration"
+    );
   };
 
   /* ===============================
@@ -146,9 +163,11 @@ const CandidateLogin = () => {
               placeholder="Your full name"
               value={formData.name}
               onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+                setFormData({
+                  ...formData,
+                  name: e.target.value,
+                })
               }
-              required
             />
           )}
 
@@ -158,9 +177,11 @@ const CandidateLogin = () => {
             placeholder="candidate@email.com"
             value={formData.email}
             onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
+              setFormData({
+                ...formData,
+                email: e.target.value,
+              })
             }
-            required
           />
 
           <Input
@@ -174,7 +195,6 @@ const CandidateLogin = () => {
                 password: e.target.value,
               })
             }
-            required
           />
 
           <Button
@@ -184,14 +204,18 @@ const CandidateLogin = () => {
             disabled={loading}
             className="h-12 font-black uppercase tracking-widest text-xs"
           >
-            {loading ? "Please wait..." : isLogin ? "Login" : "Register"}
+            {loading
+              ? "Please wait..."
+              : isLogin
+              ? "Login"
+              : "Register"}
           </Button>
         </form>
 
         {/* TOGGLE */}
         <div className="mt-6 text-center">
           <button
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={toggleMode}
             className="text-xs font-bold text-slate-500 hover:text-white"
           >
             {isLogin
@@ -205,3 +229,4 @@ const CandidateLogin = () => {
 };
 
 export default CandidateLogin;
+

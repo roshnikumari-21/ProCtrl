@@ -78,7 +78,14 @@ const CandidateExam = () => {
 
   /* ================= SAFETY GUARD ================= */
   useEffect(() => {
-    if (!attemptId || !test) {
+    if (!attemptId) {
+      toast.error("Invalid exam session. Please rejoin the test.");
+      navigate("/");
+      return;
+    }
+
+    if (!test) {
+      toast.error("Exam data not found. Please rejoin the test.");
       navigate("/");
     }
   }, [attemptId, test, navigate]);
@@ -101,15 +108,26 @@ const CandidateExam = () => {
   /* ================= FULLSCREEN ================= */
   useEffect(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => {
+        toast.error(
+          "Fullscreen mode is required for this exam. Please enable fullscreen."
+        );
+      });
     }
   }, []);
 
   /* ================= CAMERA PREVIEW ================= */
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    });
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      })
+      .catch(() => {
+        toast.error(
+          "Camera access denied. This may be recorded as a violation."
+        );
+      });
   }, []);
 
   /* ================= TIMER INIT ================= */
@@ -147,7 +165,11 @@ const CandidateExam = () => {
 
       setRunOutput(formatted);
     } catch (err) {
-      setRunOutput(err.response?.data?.message || "Error while running code");
+      const msg =
+        err.response?.data?.message || "System error while running code";
+
+      setRunOutput(msg);
+      toast.error(msg);
     } finally {
       setIsRunning(false);
     }

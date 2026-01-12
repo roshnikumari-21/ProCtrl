@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
+import { toastInfo, toastSuccess } from "../utils/toast";
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
@@ -8,11 +9,20 @@ const CandidateDashboard = () => {
 
   useEffect(() => {
     const stored = localStorage.getItem("candidate_user");
+
     if (!stored) {
+      toastInfo("Please login to access your dashboard");
       navigate("/candidate-login");
       return;
     }
-    setCandidate(JSON.parse(stored));
+
+    try {
+      setCandidate(JSON.parse(stored));
+    } catch {
+      toastInfo("Session expired. Please login again.");
+      localStorage.removeItem("candidate_user");
+      navigate("/candidate-login");
+    }
   }, [navigate]);
 
   const handleJoinTest = () => navigate("/join");
@@ -22,6 +32,8 @@ const CandidateDashboard = () => {
     localStorage.removeItem("candidate_token");
     localStorage.removeItem("candidate_user");
     localStorage.removeItem("examState");
+
+    toastSuccess("Logged out successfully");
     navigate("/");
   };
 
@@ -43,6 +55,7 @@ const CandidateDashboard = () => {
                 Access your exam actions and review your history.
               </p>
             </div>
+
             {candidate && (
               <div className="text-right text-sm text-slate-400">
                 <div className="font-bold text-white">{candidate.name}</div>
@@ -58,6 +71,7 @@ const CandidateDashboard = () => {
           </div>
         </Card>
 
+        {/* JOIN TEST */}
         <Card className="p-6 bg-slate-900 border border-slate-800 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -73,6 +87,7 @@ const CandidateDashboard = () => {
               ▶
             </div>
           </div>
+
           <Button
             fullWidth
             size="lg"
@@ -83,6 +98,7 @@ const CandidateDashboard = () => {
           </Button>
         </Card>
 
+        {/* PAST SCORES */}
         <Card className="p-6 bg-slate-900 border border-slate-800 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -98,6 +114,7 @@ const CandidateDashboard = () => {
               ★
             </div>
           </div>
+
           <Button
             fullWidth
             size="lg"
@@ -109,6 +126,7 @@ const CandidateDashboard = () => {
           </Button>
         </Card>
 
+        {/* TIPS */}
         <Card className="lg:col-span-3 p-6 bg-slate-900 border border-slate-800 shadow-xl">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-4">
             Session Tips
@@ -134,3 +152,4 @@ const CandidateDashboard = () => {
 };
 
 export default CandidateDashboard;
+

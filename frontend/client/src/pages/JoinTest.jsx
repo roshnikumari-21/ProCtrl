@@ -16,7 +16,9 @@ const JoinTest = () => {
     passcode: "",
   });
 
-  // Auto-fill candidate data from login
+  const [loading, setLoading] = useState(false);
+
+  /* ---------------- Auto-fill candidate data ---------------- */
   useEffect(() => {
     const stored = localStorage.getItem("candidate_user");
     if (stored) {
@@ -29,10 +31,8 @@ const JoinTest = () => {
     }
   }, []);
 
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(null);
-
-  const isEmailValid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isEmailValid = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const isFormValid =
     formData.fullName.trim().length >= 3 &&
@@ -40,17 +40,16 @@ const JoinTest = () => {
     formData.testId.trim().length >= 4 &&
     formData.passcode.trim().length >= 4;
 
-  const handleError = (error) => {
-    toast.error(error.message || "An error occurred");
-  };
-
   /* ---------------- Submit ---------------- */
   const handleJoin = async (e) => {
     e.preventDefault();
-    if (!isFormValid || loading) return;
+
+    if (!isFormValid || loading) {
+      toast.error("Please fill all required fields correctly");
+      return;
+    }
 
     setLoading(true);
-    setStatusMessage(null);
 
     try {
       const res = await api.post("/attempts/join", {
@@ -73,30 +72,16 @@ const JoinTest = () => {
       };
 
       setExamState(examPayload);
-
       localStorage.setItem("examState", JSON.stringify(examPayload));
 
-      setExamState({
-        candidate: {
-          name: formData.fullName.trim(),
-          email: formData.email.toLowerCase().trim(),
-        },
-        test,
-        attemptId,
-        status: "joined",
-      });
+      toast.success("Access granted. Preparing instructions…");
 
       navigate(`/instructions/${formData.testId.trim()}`);
     } catch (err) {
-      const msg =
+      toast.error(
         err.response?.data?.message ||
-        "Unable to join the test. Please verify your details.";
-
-      setStatusMessage({
-        type: "error",
-        text: msg,
-      });
-      handleError(err);
+          "Unable to join the test. Please verify your details."
+      );
     } finally {
       setLoading(false);
     }
@@ -106,10 +91,12 @@ const JoinTest = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-8 sm:p-10 md:p-12 bg-slate-950">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-5 overflow-hidden rounded-2xl border border-slate-800 shadow-2xl">
-        {/* Left: Form */}
+        {/* LEFT: FORM */}
         <div className="lg:col-span-3 bg-slate-900 p-6 sm:p-10 md:p-14">
           <div className="mb-10">
-            <h1 className="text-3xl font-black text-white mb-2">Join Test</h1>
+            <h1 className="text-3xl font-black text-white mb-2">
+              Join Test
+            </h1>
             <p className="text-slate-500 font-medium">
               Authentication required to access the secure room.
             </p>
@@ -118,25 +105,15 @@ const JoinTest = () => {
           <form onSubmit={handleJoin} className="space-y-6">
             <Input
               label="Full Legal Name"
-              placeholder="e.g. Alex Johnson"
               value={formData.fullName}
-              onChange={(e) =>
-                setFormData({ ...formData, fullName: e.target.value })
-              }
               disabled
-              required
             />
 
             <Input
               label="Official Email Address"
               type="email"
-              placeholder="user@institution.edu"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
               disabled
-              required
             />
 
             <Input
@@ -148,6 +125,7 @@ const JoinTest = () => {
               }
               required
             />
+
             <Input
               label="Access Passcode"
               type="password"
@@ -159,15 +137,6 @@ const JoinTest = () => {
               required
             />
 
-            {/* Status Message */}
-            <div className="min-h-[60px]">
-              {statusMessage && (
-                <div className="p-4 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                  {statusMessage.text}
-                </div>
-              )}
-            </div>
-
             <Button
               type="submit"
               fullWidth
@@ -178,7 +147,7 @@ const JoinTest = () => {
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  Authenticating...
+                  Authenticating…
                 </span>
               ) : (
                 "Join Test"
@@ -187,7 +156,7 @@ const JoinTest = () => {
           </form>
         </div>
 
-        {/* Right: Guidelines */}
+        {/* RIGHT: GUIDELINES */}
         <div className="lg:col-span-2 bg-slate-950 p-6 sm:p-10 md:p-14 border-t lg:border-l border-slate-800">
           <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-8">
             Critical Guidelines
@@ -198,22 +167,26 @@ const JoinTest = () => {
               {
                 icon: "🔑",
                 title: "Secure Access",
-                text: "This assessment is protected by an email whitelist and a unique passcode issued by the test administrator",
+                text:
+                  "This assessment is protected by an email whitelist and a unique passcode issued by the administrator.",
               },
               {
                 icon: "📷",
                 title: "Hardware Authorization",
-                text: "Camera and microphone access will be required before the exam begins.",
+                text:
+                  "Camera and microphone access will be required before the exam begins.",
               },
               {
                 icon: "🚫",
                 title: "Session Integrity",
-                text: "Refreshing or navigating away after joining may invalidate your attempt.",
+                text:
+                  "Refreshing or navigating away after joining may invalidate your attempt.",
               },
               {
                 icon: "⚡",
                 title: "Environment Check",
-                text: "Ensure a quiet and private environment. Background activity is monitored.",
+                text:
+                  "Ensure a quiet and private environment. Background activity is monitored.",
               },
             ].map((item, i) => (
               <div key={i} className="flex gap-4">
@@ -243,3 +216,4 @@ const JoinTest = () => {
 };
 
 export default JoinTest;
+
