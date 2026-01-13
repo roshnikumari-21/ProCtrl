@@ -53,4 +53,3 @@ initWorkers()
   });
 
 export default app;
-

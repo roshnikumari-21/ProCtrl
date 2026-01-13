@@ -90,23 +90,48 @@ export default function initSockets(io) {
     socket.on(
       "candidate:violation",
       async ({ attemptId, testId, type, image, timestamp }) => {
-        console.log(`Violation reported: ${type} for attempt ${attemptId}`);
+        try {
+          console.log(
+            `[Socket] Violation reported: ${type} for attempt ${attemptId}. Image present: ${!!image}`
+          );
 
-        const violation = {
-          type,
-          timestamp: timestamp || new Date(),
-          metadata: { image },
-        };
+          const violation = {
+            type,
+            timestamp: timestamp || new Date(),
+            metadata: { image },
+          };
 
-        await TestAttempt.findByIdAndUpdate(attemptId, {
-          $push: { violations: violation },
-        });
+          const attempt = await TestAttempt.findById(attemptId);
+          if (!attempt) {
+            console.error(`[Socket] Failed to find attempt ${attemptId}`);
+            return;
+          }
 
-        // Notify admin immediately
-        io.to(testId).emit("admin:violation", {
-          attemptId,
-          violation,
-        });
+          console.log(
+            `[Socket] pushing violation to attempt ${attemptId}. Current count: ${attempt.violations.length}`
+          );
+          attempt.violations.push(violation);
+
+          const savedAttempt = await attempt.save();
+          console.log(
+            `[Socket] Violation saved successfully. New count: ${savedAttempt.violations.length}`
+          );
+
+          // Notify admin immediately
+          io.to(testId).emit("admin:violation", {
+            attemptId,
+            violation,
+          });
+        } catch (err) {
+          console.error("[Socket] Error saving violation:", err);
+          if (err.name === "ValidationError") {
+            for (let field in err.errors) {
+              console.error(
+                `[Socket] Validation Error Field: ${field}, Message: ${err.errors[field].message}`
+              );
+            }
+          }
+        }
       }
     );
 

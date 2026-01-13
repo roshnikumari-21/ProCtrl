@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { toast } from "react-toastify";
 import { reportViolation } from "../services/violations";
+import { captureSnapshot } from "../utils/camera";
 
 const useFaceDetection = (videoRef, attemptId, testId) => {
   const [detector, setDetector] = useState(null);
@@ -43,20 +44,6 @@ const useFaceDetection = (videoRef, attemptId, testId) => {
     let lastVideoTime = -1;
     const video = videoRef.current;
 
-    const captureSnapshot = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0);
-        return canvas.toDataURL("image/jpeg", 0.5);
-      } catch (e) {
-        console.error("Snapshot failed", e);
-        return null;
-      }
-    };
-
     const triggerViolation = (type, message) => {
       // If no attemptId/testId, we might be in pre-check mode.
       // We can still show toast, but skip reporting.
@@ -68,7 +55,7 @@ const useFaceDetection = (videoRef, attemptId, testId) => {
         toast.warning(message);
 
         if (attemptId && testId) {
-          const image = captureSnapshot();
+          const image = captureSnapshot(video);
           reportViolation(attemptId, testId, type, image);
         }
       }

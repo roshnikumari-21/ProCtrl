@@ -1,42 +1,51 @@
 import { useEffect } from "react";
 import { reportViolation } from "../services/violations";
+import { captureSnapshot } from "../utils/camera";
 
-const useProctoring = (attemptId, testId) => {
+const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
   useEffect(() => {
-    if (!attemptId || !testId) return;
+    if (!attemptId || !testId || isSubmitted) return;
+
+    const handleViolation = (type) => {
+      console.log(`Violation detected: ${type}`);
+      const image = videoRef?.current
+        ? captureSnapshot(videoRef.current)
+        : null;
+      reportViolation(attemptId, testId, type, image);
+    };
 
     const onFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        reportViolation(attemptId, testId, "fullscreen_exit");
+        handleViolation("fullscreen_exit");
       }
     };
 
     const onVisibilityChange = () => {
       if (document.hidden) {
-        reportViolation(attemptId, testId, "tab_switch");
+        handleViolation("tab_switch");
       }
     };
 
     const onBlur = () => {
-      reportViolation(attemptId, testId, "window_blur");
+      handleViolation("window_blur");
     };
 
     const onCopy = (e) => {
       e.preventDefault();
-      reportViolation(attemptId, testId, "copy_attempt");
+      handleViolation("copy_attempt");
     };
 
     const onPaste = (e) => {
       e.preventDefault();
-      reportViolation(attemptId, testId, "paste_attempt");
+      handleViolation("paste_attempt");
     };
 
     const devToolsInterval = setInterval(() => {
       const start = performance.now();
-      
+
       const end = performance.now();
       if (end - start > 100) {
-        reportViolation(attemptId, testId, "devtools_detected");
+        handleViolation("devtools_detected");
       }
     }, 2000);
 
@@ -54,7 +63,7 @@ const useProctoring = (attemptId, testId) => {
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("paste", onPaste);
     };
-  }, [attemptId, testId]);
+  }, [attemptId, testId, isSubmitted, videoRef]);
 };
 
 export default useProctoring;

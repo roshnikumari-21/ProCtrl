@@ -39,8 +39,25 @@ const answerSchema = new mongoose.Schema({
 });
 
 const violationSchema = new mongoose.Schema({
-  type: String, // tab-switch, face-not-detected, audio
-  timestamp: Date,
+  type: {
+    type: String,
+    enum: [
+      "multiple_faces",
+      "face_not_detected",
+      "fullscreen_exit",
+      "tab_switch",
+      "window_blur",
+      "copy_attempt",
+      "paste_attempt",
+      "devtools_detected",
+      "audio_detected",
+    ],
+    required: true,
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
   metadata: Object,
 });
 
