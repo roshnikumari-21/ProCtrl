@@ -8,6 +8,7 @@ import api from "../services/api";
 import socket from "../services/socket";
 import Editor from "@monaco-editor/react";
 import { toast } from "react-toastify";
+import { exitFullscreen } from "../utils/fullscreen";
 
 const CandidateExam = () => {
   const { attemptId } = useParams();
@@ -18,6 +19,7 @@ const CandidateExam = () => {
   const [runOutput, setRunOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const test = examState.test;
   const questions = test?.questions || [];
@@ -29,6 +31,7 @@ const CandidateExam = () => {
 
   const timerRef = useRef(null);
   const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
   const autoSaveFailedRef = useRef(false);
 
@@ -104,7 +107,7 @@ const CandidateExam = () => {
   }, [attemptId, test]);
 
   /* ================= PROCTORING ================= */
-  useProctoring(attemptId, test?.testId);
+  useProctoring(attemptId, test?.testId, videoRef, isSubmitted);
   useFaceDetection(videoRef, attemptId, test?.testId);
 
   /* ================= FULLSCREEN ================= */
@@ -123,6 +126,7 @@ const CandidateExam = () => {
     navigator.mediaDevices
       .getUserMedia({ video: true })
       .then((stream) => {
+        streamRef.current = stream;
         if (videoRef.current) videoRef.current.srcObject = stream;
       })
       .catch(() => {
@@ -130,6 +134,12 @@ const CandidateExam = () => {
           "Camera access denied. This may be recorded as a violation."
         );
       });
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
   }, []);
 
   /* ================= TIMER INIT ================= */
@@ -254,12 +264,21 @@ const CandidateExam = () => {
   /* ================= SUBMIT ================= */
   const handleSubmit = async (auto = false) => {
     try {
+      setIsSubmitted(true);
       await api.post(`/attempts/submit/${attemptId}`, {
         answers: Object.entries(answers).map(([q, a]) => ({
           question: q,
           answer: a,
         })),
       });
+
+      // Stop Camera
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      // Exit Fullscreen
+      await exitFullscreen();
 
       socket.emit("candidate:submit", {
         attemptId,
@@ -273,6 +292,7 @@ const CandidateExam = () => {
       toast.success(auto ? "Time up. Exam submitted." : "Exam submitted.");
       navigate("/thank-you");
     } catch (err) {
+      setIsSubmitted(false);
       console.error("Submit failed:", err);
       const errorMsg = err.response?.data?.message || "Failed to submit exam";
       toast.error(errorMsg);

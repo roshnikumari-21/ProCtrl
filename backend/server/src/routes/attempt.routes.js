@@ -3,7 +3,7 @@ import Test from "../models/Test.js";
 import TestAttempt from "../models/TestAttempt.js";
 import validateEmail from "../utils/validateEmail.js";
 import bcrypt from "bcryptjs";
-import {authorize} from "../middleware/role.middleware.js";
+import { authorize } from "../middleware/role.middleware.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -17,7 +17,6 @@ const router = express.Router();
  */
 
 import User from "../models/User.js";
-
 
 router.get(
   "/my-attempts",
@@ -61,9 +60,7 @@ router.get(
 
         score: a.score ?? null,
         totalMarks: a.totalMarks ?? null,
-        violations: Array.isArray(a.violations)
-          ? a.violations.length
-          : 0,
+        violations: Array.isArray(a.violations) ? a.violations.length : 0,
       }));
 
       res.json(formatted);
@@ -75,9 +72,6 @@ router.get(
     }
   }
 );
-
-
-
 
 /**
  * ===============================
@@ -169,6 +163,7 @@ router.post("/join", async (req, res) => {
     res.json({
       attemptId: attempt._id,
       test: {
+        testId: test.testId,
         title: test.title,
         duration: test.duration,
         questions: test.questions.map((q) => ({

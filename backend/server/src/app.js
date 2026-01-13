@@ -7,15 +7,10 @@ import testRoutes from "./routes/test.routes.js";
 import attemptRoutes from "./routes/attempt.routes.js";
 import codeRoutes from "./routes/code.routes.js";
 import adminMonitoringRoutes from "./routes/adminMonitoring.routes.js";
-import { initCppWorker } from './services/codeRunner/evaluateCpp.js'; // Adjust path
+import { initCppWorker } from "./services/codeRunner/evaluateCpp.js"; // Adjust path
 
-
-initCppWorker().then(() => {
-    app.listen(3000, () => {
-        console.log("Server running on port 3000");
-    });
-});
-
+// Initialize worker but don't start server here
+initCppWorker().catch((err) => console.error("Failed to init CppWorker", err));
 
 const app = express();
 app.use(
@@ -43,4 +38,3 @@ app.get("/health", (req, res) => {
 });
 
 export default app;
-
