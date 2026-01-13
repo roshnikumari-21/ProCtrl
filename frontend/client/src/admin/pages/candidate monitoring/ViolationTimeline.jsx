@@ -1,74 +1,67 @@
+import { useEffect, useState } from "react";
+import socket from "../../../services/socket";
 import { Card } from "../../../components/UI";
 
-const severityColor = {
-  low: "text-slate-300",
-  medium: "text-yellow-400",
-  high: "text-red-400",
-};
+const ViolationTimeline = ({ violations: initial }) => {
+  const [violations, setViolations] = useState(initial || []);
 
-const ViolationTimeline = ({ violations }) => {
-  if (!violations || violations.length === 0) {
-    return (
-      <Card className="p-6 text-center text-slate-400">
-        No violations recorded
-      </Card>
-    );
-  }
+  useEffect(() => {
+    const handler = ({ violation }) => {
+      setViolations((prev) => [...prev, violation]); // append to end (timeline)
+    };
+
+    socket.on("admin:violation", handler);
+    return () => socket.off("admin:violation", handler);
+  }, []);
 
   return (
-    <Card className="p-6 space-y-4">
-      <h3 className="font-bold text-lg">
-        Violation Timeline
-      </h3>
+    <Card className="p-6">
+      <h3 className="font-bold mb-4">Violation Timeline</h3>
 
-      <div className="space-y-3">
-        {violations.map((v, index) => (
-          <div
-            key={index}
-            className="border border-slate-800 rounded p-4"
-          >
-            <div className="flex justify-between">
-              <p
-                className={`font-semibold ${
-                  severityColor[v.severity]
-                }`}
+      {violations.length === 0 ? (
+        <p className="text-slate-400 text-sm">
+          No violations recorded
+        </p>
+      ) : (
+        <div className="relative">
+          {/* Timeline rail */}
+          <div className="absolute top-10 left-0 right-0 h-[2px] bg-slate-800" />
+
+          {/* Scroll container */}
+          <div className="flex gap-6 overflow-x-auto pb-4 pt-2 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
+            {violations.map((v, i) => (
+              <div
+                key={i}
+                className="relative min-w-[220px] bg-slate-900 border border-slate-800 rounded-xl p-4"
               >
-                {v.type}
-              </p>
+                {/* Dot */}
+                <div className="absolute -top-3 left-4 w-3 h-3 rounded-full bg-red-500 shadow-md" />
 
-              <p className="text-xs text-slate-400">
-                {new Date(v.timestamp).toLocaleTimeString()}
-              </p>
-            </div>
-
-            <p className="text-sm text-slate-400 mt-1">
-              Severity: {v.severity.toUpperCase()} ·
-              Confidence: {Math.round(v.confidence * 100)}%
-            </p>
-
-            {v.details && (
-              <p className="text-sm mt-2">
-                {v.details}
-              </p>
-            )}
-
-            {v.snapshot && (
-              <div className="mt-3">
-                <p className="text-xs text-slate-400 mb-1">
-                  Evidence Snapshot
+                {/* Content */}
+                <p className="text-xs font-black uppercase tracking-wider text-red-400">
+                  {v.type.replaceAll("_", " ")}
                 </p>
-                <img
-                  src={v.snapshot}
-                  alt="Violation snapshot"
-                  className="rounded border border-slate-700 max-w-xs"
-                />
+
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {new Date(v.timestamp).toLocaleString()}
+                </p>
+
+                {v.metadata?.image && (
+                  <img
+                    src={v.metadata.image}
+                    alt="snapshot"
+                    className="mt-3 rounded-lg w-full object-cover border border-slate-800"
+                  />
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </Card>
   );
 };
 
 export default ViolationTimeline;
+
+

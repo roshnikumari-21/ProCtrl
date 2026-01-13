@@ -85,6 +85,11 @@ const testAttemptSchema = new mongoose.Schema(
       default: "joined",
     },
 
+    terminationReason: {
+      type: String,
+      default: null,
+    },
+
     answers: [answerSchema],
 
     violations: [violationSchema],

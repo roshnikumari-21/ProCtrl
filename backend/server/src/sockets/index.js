@@ -4,30 +4,76 @@ export default function initSockets(io) {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
-    /**
-     * Admin joins a test room
-     */
-    socket.on("admin:join", ({ testId }) => {
-      socket.join(testId);
-      console.log(`Admin joined test room ${testId}`);
+   // Admin joins a specific attempt room to monitor
+    socket.on("admin:join", ({ attemptId }) => {
+      socket.join(attemptId);
+      console.log(`Admin joined monitoring room: ${attemptId}`);
+      // Notify candidate that admin is watching (so candidate can send offer)
+      socket.to(attemptId).emit("admin:ready"); 
     });
 
-    /**
-     * Candidate joins test
-     */
+   // Candidate joins
     socket.on("candidate:join", async ({ attemptId, testId }) => {
-      socket.join(testId);
+      socket.join(testId);   // For exam-wide broadcasts
+      socket.join(attemptId); // For 1:1 WebRTC with Admin
+      
+      console.log(`Candidate joined rooms: ${testId} & ${attemptId}`);
 
-      // Removed overwriting status to "joined" to prevent resetting "in_progress"
-      // await TestAttempt.findByIdAndUpdate(attemptId, {
-      //   status: "joined",
-      // });
-
-      // Optionally notify admin that candidate is online
+      // Notify admin the candidate is online
       io.to(testId).emit("candidate:update", {
         attemptId,
         status: "online",
       });
+    });
+
+    socket.on("admin:warn", ({ attemptId, message }) => {
+      // Emit directly to the candidate's room (using attemptId)
+      io.to(attemptId).emit("candidate:warn", { message });
+    });
+
+    socket.on("admin:terminate", async ({ attemptId, reason }) => {
+      try {
+        // 1. Update DB immediately to stop further auto-saves/submissions
+        const attempt = await TestAttempt.findByIdAndUpdate(
+          attemptId,
+          {
+            status: "terminated",
+            terminationReason: reason,
+            submittedAt: new Date(), // Mark as ended now
+          },
+          { new: true }
+        );
+
+        if (attempt) {
+          // 2. Notify the Candidate to block their screen
+          io.to(attemptId).emit("candidate:terminated", { reason });
+          
+          // 3. Notify Admin (confirmation)
+          // Using socket.emit sends back to the sender (Admin)
+          socket.emit("admin:terminate_success", { 
+             message: "Attempt terminated successfully." 
+          });
+        }
+      } catch (err) {
+        console.error("Termination error:", err);
+      }
+    });
+
+    // --- WEBRTC SIGNALING (Relay between Admin & Candidate) ---
+
+    // Candidate sends Offer -> Admin
+    socket.on("webrtc:offer", ({ attemptId, offer }) => {
+      socket.to(attemptId).emit("webrtc:offer", offer);
+    });
+
+    // Admin sends Answer -> Candidate
+    socket.on("webrtc:answer", ({ attemptId, answer }) => {
+      socket.to(attemptId).emit("webrtc:answer", answer);
+    });
+
+    // Exchange ICE Candidates
+    socket.on("webrtc:ice", ({ attemptId, candidate }) => {
+      socket.to(attemptId).emit("webrtc:ice", candidate);
     });
 
     /**
@@ -134,6 +180,7 @@ export default function initSockets(io) {
         }
       }
     );
+
 
     /**
      * Disconnect handling

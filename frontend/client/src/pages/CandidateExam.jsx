@@ -20,20 +20,20 @@ const CandidateExam = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
+  const [isTerminated, setIsTerminated] = useState(false);
+  const [terminationReason, setTerminationReason] = useState("");
   const test = examState.test;
   const questions = test?.questions || [];
-
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null);
   const [isMapOpen, setIsMapOpen] = useState(false);
-
   const timerRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
   const autoSaveFailedRef = useRef(false);
+  const pcRef = useRef(null);
 
   /* ================= AUTO SAVE (DEBOUNCED) ================= */
   useEffect(() => {
@@ -103,8 +103,64 @@ const CandidateExam = () => {
       testId: test.testId,
     });
 
-    return () => socket.disconnect();
+    return () =>{}
   }, [attemptId, test]);
+
+useEffect(() => {
+    if (!socket) return;
+
+    // 1. Handle Warning
+    const handleWarn = ({ message }) => {
+      // Play a notification sound (optional)
+      const audio = new Audio('/assets/sounds/warning.mp3'); // Ensure file exists or remove
+      audio.play().catch(() => {});
+      
+      // Show persistent toast
+      toast.warn(
+        <div>
+          <p className="font-bold">PROCTOR WARNING</p>
+          <p>{message}</p>
+        </div>,
+        {
+          position: "top-center",
+          autoClose: 10000,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: false,
+          theme: "colored",
+        }
+      );
+    };
+
+    // 2. Handle Termination
+    const handleTermination = async ({ reason }) => {
+      setIsTerminated(true);
+      setTerminationReason(reason || "Violation of exam rules.");
+      
+      // Stop Camera
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      
+      // Exit Fullscreen
+      await exitFullscreen();
+
+      // Clear local storage
+      localStorage.removeItem("examState");
+      
+      // Update Context
+      setExamState((prev) => ({ ...prev, status: "terminated" }));
+    };
+
+    socket.on("candidate:warn", handleWarn);
+    socket.on("candidate:terminated", handleTermination);
+
+    return () => {
+      socket.off("candidate:warn", handleWarn);
+      socket.off("candidate:terminated", handleTermination);
+    };
+  }, []);
 
   /* ================= PROCTORING ================= */
   useProctoring(attemptId, test?.testId, videoRef, isSubmitted);
@@ -121,26 +177,104 @@ const CandidateExam = () => {
     }
   }, []);
 
-  /* ================= CAMERA PREVIEW ================= */
-  useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then((stream) => {
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch(() => {
-        toast.error(
-          "Camera access denied. This may be recorded as a violation."
-        );
-      });
 
+useEffect(() => {
+    if (!attemptId || !test) return;
+
+    // 1. Initialize PeerConnection
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+    pcRef.current = pc;
+
+    // 2. Handle ICE Candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("webrtc:ice", {
+          attemptId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    // 3. Get Camera Stream (ONCE for both Preview and WebRTC)
+    const startStream = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true, // Capture audio for proctoring (Admin can mute on their end)
+        });
+        
+        streamRef.current = stream;
+        
+        // A. Set Local Preview
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        // B. Add Tracks to PC
+        stream.getTracks().forEach((track) => {
+          pc.addTrack(track, stream);
+        });
+
+        // C. Send Offer
+        createAndSendOffer();
+
+      } catch (err) {
+        console.error("Camera Error:", err);
+        toast.error("Failed to access camera. Please allow permissions.");
+      }
+    };
+
+    startStream();
+
+    // 4. Helper to Create Offer
+    const createAndSendOffer = async () => {
+      if (!pcRef.current) return;
+      try {
+        const offer = await pcRef.current.createOffer();
+        await pcRef.current.setLocalDescription(offer);
+        socket.emit("webrtc:offer", { attemptId, offer });
+      } catch (e) {
+        console.error("Error creating offer:", e);
+      }
+    };
+
+    // 5. Socket Listeners
+    socket.on("webrtc:answer", async (answer) => {
+      if (pcRef.current) {
+        await pcRef.current.setRemoteDescription(answer);
+      }
+    });
+
+    socket.on("webrtc:ice", async (candidate) => {
+      if (pcRef.current) {
+        try {
+          await pcRef.current.addIceCandidate(candidate);
+        } catch (e) { console.error("Error adding ICE:", e); }
+      }
+    });
+
+    // If Admin joins late, they emit 'admin:ready'. Resend offer.
+    socket.on("admin:ready", () => {
+      console.log("Admin joined, sending offer...");
+      createAndSendOffer();
+    });
+
+    // Cleanup
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
+      if (pcRef.current) {
+        pcRef.current.close();
+      }
+      socket.off("webrtc:answer");
+      socket.off("webrtc:ice");
+      socket.off("admin:ready");
     };
-  }, []);
+  }, [attemptId, test]);
+
 
   /* ================= TIMER INIT ================= */
   useEffect(() => {
@@ -335,6 +469,51 @@ const CandidateExam = () => {
       </div>
     );
   }
+
+// === RENDER TERMINATION SCREEN ===
+  if (isTerminated) {
+    return (
+      <div className="min-h-screen bg-red-950 flex items-center justify-center p-6 text-center">
+        <div className="bg-slate-900 border-2 border-red-600 rounded-2xl p-10 max-w-lg w-full shadow-2xl space-y-6">
+          <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center mx-auto">
+            <svg
+              className="w-10 h-10 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+              />
+            </svg>
+          </div>
+          
+          <h1 className="text-3xl font-black text-white">Exam Terminated</h1>
+          
+          <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/30">
+            <p className="text-sm text-red-300 uppercase font-bold mb-1">Reason</p>
+            <p className="text-lg text-white">{terminationReason}</p>
+          </div>
+
+          <p className="text-slate-400">
+            The proctor has terminated your session due to policy violations. 
+            Your responses up to this point have been recorded.
+          </p>
+
+          <Button 
+            className="w-full" 
+            onClick={() => navigate("/thank-you")} // Or wherever you want them to go
+          >
+            Go to Feedback Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 
   /* ================= RENDER ================= */
   return (
