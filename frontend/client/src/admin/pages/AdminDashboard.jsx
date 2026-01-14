@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import useBlockBackNavigation from "../../hooks/useBlockBackNavigation";
 
 const AdminDashboard = () => {
   const [admin, setAdmin] = useState(null);
-
+  useBlockBackNavigation(true);
   // Pull admin details from login payload stored in localStorage.
   useEffect(() => {
     try {

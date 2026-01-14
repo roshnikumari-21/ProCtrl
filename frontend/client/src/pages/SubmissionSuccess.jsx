@@ -4,6 +4,7 @@ import { Card, Button, Textarea, Input } from "../components/UI";
 import { toast } from "react-toastify";
 import { useExam } from "../context/ExamContext";
 import api from "../services/api";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
 
 const ratingOptions = [
   { value: 5, label: "Excellent" },
@@ -16,7 +17,7 @@ const ratingOptions = [
 const SubmissionSuccess = () => {
   const navigate = useNavigate();
   const { examState } = useExam();
-
+  useBlockBackNavigation(true);
   const [candidate, setCandidate] = useState(null);
   const [rating, setRating] = useState(null);
   const [headline, setHeadline] = useState("");

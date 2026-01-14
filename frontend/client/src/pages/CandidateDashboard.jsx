@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
 import { toastInfo, toastSuccess } from "../utils/toast";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState(null);
-
+  useBlockBackNavigation(true);
   useEffect(() => {
     const stored = localStorage.getItem("candidate_user");
 

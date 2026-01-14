@@ -5,6 +5,7 @@ import { useExam } from "../context/ExamContext";
 import useFaceDetection from "../hooks/useFaceDetection.jsx";
 import api from "../services/api";
 import { toast } from "react-toastify";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
 
 const PreCheck = () => {
   const { testId } = useParams();
@@ -23,7 +24,7 @@ const PreCheck = () => {
 
   const [micLevel, setMicLevel] = useState(0);
   const [agreed, setAgreed] = useState(false);
-
+  useBlockBackNavigation(true);
   const { isFaceDetected } = useFaceDetection(videoRef, null, null);
 
   /* ================= FULLSCREEN MONITOR ================= */

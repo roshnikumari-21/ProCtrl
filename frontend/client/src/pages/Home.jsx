@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Card } from "../components/UI";
 import { toastInfo } from "../utils/toast";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
 
 const Home = () => {
   const navigate = useNavigate();
-
+  useBlockBackNavigation(true);
   const goCandidate = () => {
     toastInfo("Redirecting to candidate login");
     navigate("/candidatelogin");
