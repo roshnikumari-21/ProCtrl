@@ -10,13 +10,11 @@ const LiveMonitor = ({ attemptId }) => {
   useEffect(() => {
     if (!attemptId) return;
 
-    // 1. Initialize PeerConnection
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
     pcRef.current = pc;
 
-    // 2. Handle Incoming Stream
     pc.ontrack = (event) => {
       console.log("Stream received!");
       if (videoRef.current) {
@@ -25,7 +23,6 @@ const LiveMonitor = ({ attemptId }) => {
       }
     };
 
-    // 3. Handle ICE Candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("webrtc:ice", {
@@ -35,11 +32,8 @@ const LiveMonitor = ({ attemptId }) => {
       }
     };
 
-    // 4. Join Room & Signal Ready
-    // FIX: Key must match backend expectations ({ attemptId })
     socket.emit("admin:join", { attemptId }); 
 
-    // 5. Socket Listeners
     socket.on("webrtc:offer", async (offer) => {
       console.log("Received Offer");
       try {
@@ -60,7 +54,6 @@ const LiveMonitor = ({ attemptId }) => {
       pc.close();
       socket.off("webrtc:offer");
       socket.off("webrtc:ice");
-      // Optional: Leave room
     };
   }, [attemptId]);
 
@@ -78,7 +71,7 @@ const LiveMonitor = ({ attemptId }) => {
           ref={videoRef}
           autoPlay
           playsInline
-          muted // Admin usually mutes audio to prevent feedback loop
+          muted
           className="w-full h-full object-cover"
         />
         {!connected && (

@@ -1,8 +1,8 @@
-// routes/adminMonitoring.routes.js
 import express from "express";
 import TestAttempt from "../models/TestAttempt.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/role.middleware.js";
+import Test from "../models/Test.js";
 
 const router = express.Router();
 
@@ -51,5 +51,54 @@ router.get(
   }
 );
 
+
+router.get(
+  "/tests/:testId/attempt-stats",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+  try {
+    const { testId } = req.params;
+
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({ message: "Test not found" });
+    }
+
+    const allowedEmails = test.allowedCandidates.map(
+      (c) => c.email
+    );
+
+    const attempts = await TestAttempt.find({
+      test: testId,
+      candidateEmail: { $in: allowedEmails },
+    });
+
+    const attemptMap = new Map();
+    attempts.forEach((a) => {
+      attemptMap.set(a.candidateEmail, a.status);
+    });
+
+    const stats = {
+      not_started: 0,
+      in_progress: 0,
+      submitted: 0,
+      terminated: 0,
+    };
+
+    allowedEmails.forEach((email) => {
+      if (!attemptMap.has(email)) {
+        stats.not_started++;
+      } else {
+        stats[attemptMap.get(email)]++;
+      }
+    });
+
+    res.json({ testId, attemptStats: stats });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to compute stats" });
+  }
+});
 
 export default router;

@@ -46,26 +46,34 @@ const TestMonitoring = () => {
   /* ===============================
      GROUP ATTEMPTS
   =============================== */
-  const { notStarted, active, submitted } = useMemo(() => {
-    if (!test) return { notStarted: [], active: [], submitted: [] };
+  const { notStarted, active, submitted, terminated } = useMemo(() => {
+    if (!test) {
+      return {
+        notStarted: [],
+        active: [],
+        submitted: [],
+        terminated: [],
+      };
+    }
 
-    const startedEmails = new Set(
-      attempts.map((a) => a.candidateEmail)
-    );
+    const startedEmails = new Set(attempts.map((a) => a.candidateEmail));
 
     const ns = test.allowedCandidates.filter(
       (c) => !startedEmails.has(c.email)
     );
 
-    const act = attempts.filter(
-      (a) => a.status === "in_progress"
-    );
+    const act = attempts.filter((a) => a.status === "in_progress");
 
-    const sub = attempts.filter(
-      (a) => a.status === "submitted"
-    );
+    const sub = attempts.filter((a) => a.status === "submitted");
 
-    return { notStarted: ns, active: act, submitted: sub };
+    const term = attempts.filter((a) => a.status === "terminated");
+
+    return {
+      notStarted: ns,
+      active: act,
+      submitted: sub,
+      terminated: term,
+    };
   }, [test, attempts]);
 
   if (loading) {
@@ -83,12 +91,8 @@ const TestMonitoring = () => {
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black">
-            {test.title}
-          </h1>
-          <p className="text-sm text-slate-400">
-            Test ID: {test.testId}
-          </p>
+          <h1 className="text-2xl font-black">{test.title}</h1>
+          <p className="text-sm text-slate-400">Test ID: {test.testId}</p>
         </div>
 
         <Button
@@ -106,9 +110,7 @@ const TestMonitoring = () => {
           {isActiveTest ? "Active till" : "Ended at"}:{" "}
           {new Date(test.activeTill).toLocaleString()}
         </span>
-        <span>
-          Total Candidates: {test.allowedCandidates.length}
-        </span>
+        <span>Total Candidates: {test.allowedCandidates.length}</span>
       </Card>
 
       {/* TABS */}
@@ -117,8 +119,7 @@ const TestMonitoring = () => {
           variant={tab === "not_started" ? "primary" : "ghost"}
           onClick={() => setTab("not_started")}
         >
-          {isActiveTest ? "Not Started" : "Unattempted"} (
-          {notStarted.length})
+          {isActiveTest ? "Not Started" : "Unattempted"} ({notStarted.length})
         </Button>
 
         {isActiveTest && (
@@ -136,6 +137,12 @@ const TestMonitoring = () => {
         >
           Submitted ({submitted.length})
         </Button>
+        <Button
+          variant={tab === "terminated" ? "primary" : "ghost"}
+          onClick={() => setTab("terminated")}
+        >
+          Terminated ({terminated.length})
+        </Button>
       </Card>
 
       {/* CANDIDATE LIST */}
@@ -146,10 +153,7 @@ const TestMonitoring = () => {
             <Card key={i} className="p-5">
               <p className="font-semibold">{c.email}</p>
               <p className="text-sm text-slate-400 mt-1">
-                Status:{" "}
-                {isActiveTest
-                  ? "Not Started"
-                  : "Unattempted"}
+                Status: {isActiveTest ? "Not Started" : "Unattempted"}
               </p>
             </Card>
           ))}
@@ -160,18 +164,10 @@ const TestMonitoring = () => {
             <Card
               key={a._id}
               className="p-5 cursor-pointer hover:border-blue-500 transition"
-              onClick={() =>
-                navigate(
-                  `/admin/monitoring/attempts/${a._id}`
-                )
-              }
+              onClick={() => navigate(`/admin/monitoring/attempts/${a._id}`)}
             >
-              <p className="font-semibold">
-                {a.candidateEmail}
-              </p>
-              <p className="text-sm text-blue-400 mt-1">
-                In Progress
-              </p>
+              <p className="font-semibold">{a.candidateEmail}</p>
+              <p className="text-sm text-blue-400 mt-1">In Progress</p>
             </Card>
           ))}
 
@@ -181,18 +177,23 @@ const TestMonitoring = () => {
             <Card
               key={a._id}
               className="p-5 cursor-pointer hover:border-green-500 transition"
-              onClick={() =>
-                navigate(
-                  `/admin/monitoring/attempts/${a._id}`
-                )
-              }
+              onClick={() => navigate(`/admin/monitoring/attempts/${a._id}`)}
             >
-              <p className="font-semibold">
-                {a.candidateEmail}
-              </p>
-              <p className="text-sm text-green-400 mt-1">
-                Submitted
-              </p>
+              <p className="font-semibold">{a.candidateEmail}</p>
+              <p className="text-sm text-green-400 mt-1">Submitted</p>
+            </Card>
+          ))}
+
+        {/* TERMINATED */}
+        {tab === "terminated" &&
+          terminated.map((a) => (
+            <Card
+              key={a._id}
+              className="p-5 cursor-pointer hover:border-red-500 transition"
+              onClick={() => navigate(`/admin/monitoring/attempts/${a._id}`)}
+            >
+              <p className="font-semibold">{a.candidateEmail}</p>
+              <p className="text-sm text-red-400 mt-1">Terminated</p>
             </Card>
           ))}
       </div>
@@ -201,4 +202,3 @@ const TestMonitoring = () => {
 };
 
 export default TestMonitoring;
-

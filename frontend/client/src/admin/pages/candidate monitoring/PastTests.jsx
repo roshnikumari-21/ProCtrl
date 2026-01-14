@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyTests } from "../../services/testApi";
+import { getAttemptStatsByTest } from "../../services/monitoringApi";
 import { Card, Button } from "../../../components/UI";
 
 const PastTests = () => {
@@ -9,12 +10,27 @@ const PastTests = () => {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ===============================
+     FETCH PAST TESTS + ATTEMPT STATS
+  =============================== */
   useEffect(() => {
     const fetchTests = async () => {
       try {
         const res = await getMyTests();
-        // Backend already separates expired tests
-        setTests(res.data.expired || []);
+        const expiredTests = res.data.expired || [];
+
+        const enrichedTests = await Promise.all(
+          expiredTests.map(async (test) => {
+            const statsRes = await getAttemptStatsByTest(test._id);
+
+            return {
+              ...test,
+              attemptStats: statsRes.data.attemptStats,
+            };
+          })
+        );
+
+        setTests(enrichedTests);
       } catch (err) {
         console.error("Failed to load past tests", err);
       } finally {
@@ -25,6 +41,9 @@ const PastTests = () => {
     fetchTests();
   }, []);
 
+  /* ===============================
+     LOADING / EMPTY STATES
+  =============================== */
   if (loading) {
     return (
       <div className="p-10 text-center text-slate-400">
@@ -41,16 +60,17 @@ const PastTests = () => {
     );
   }
 
+  /* ===============================
+     RENDER
+  =============================== */
   return (
     <div className="grid grid-cols-2 gap-6">
       {tests.map((test) => {
-        const totalCandidates = test.allowedCandidates.length;
-
-        const submitted = test.allowedCandidates.filter(
-          (c) => c.hasAttempted
-        ).length;
-
-        const unattempted = totalCandidates - submitted;
+        const {
+          not_started = 0,
+          submitted = 0,
+          terminated = 0,
+        } = test.attemptStats || {};
 
         return (
           <Card
@@ -75,13 +95,13 @@ const PastTests = () => {
             </div>
 
             {/* CANDIDATE STATS */}
-            <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
               <div className="bg-slate-900 rounded p-2">
                 <p className="text-xs text-slate-400">
                   Unattempted
                 </p>
                 <p className="text-lg font-bold text-slate-300">
-                  {unattempted}
+                  {not_started}
                 </p>
               </div>
 
@@ -91,6 +111,15 @@ const PastTests = () => {
                 </p>
                 <p className="text-lg font-bold text-green-400">
                   {submitted}
+                </p>
+              </div>
+
+              <div className="bg-slate-900 rounded p-2">
+                <p className="text-xs text-slate-400">
+                  Terminated
+                </p>
+                <p className="text-lg font-bold text-red-400">
+                  {terminated}
                 </p>
               </div>
             </div>
@@ -127,4 +156,5 @@ const PastTests = () => {
 };
 
 export default PastTests;
+
  

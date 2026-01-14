@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyTests } from "../../services/testApi";
+import { getAttemptStatsByTest } from "../../services/monitoringApi";
 import { Card } from "../../../components/UI";
 
 const ActiveTests = () => {
@@ -9,12 +10,27 @@ const ActiveTests = () => {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ===============================
+     FETCH ACTIVE TESTS + ATTEMPT STATS
+  =============================== */
   useEffect(() => {
     const fetchTests = async () => {
       try {
         const res = await getMyTests();
-        // Backend already separates live & expired
-        setTests(res.data.live || []);
+        const liveTests = res.data.live || [];
+
+        const enrichedTests = await Promise.all(
+          liveTests.map(async (test) => {
+            const statsRes = await getAttemptStatsByTest(test._id);
+
+            return {
+              ...test,
+              attemptStats: statsRes.data.attemptStats,
+            };
+          })
+        );
+
+        setTests(enrichedTests);
       } catch (err) {
         console.error("Failed to load active tests", err);
       } finally {
@@ -25,6 +41,9 @@ const ActiveTests = () => {
     fetchTests();
   }, []);
 
+  /* ===============================
+     LOADING / EMPTY STATES
+  =============================== */
   if (loading) {
     return (
       <div className="p-10 text-center text-slate-400">
@@ -41,19 +60,18 @@ const ActiveTests = () => {
     );
   }
 
+  /* ===============================
+     RENDER
+  =============================== */
   return (
     <div className="grid grid-cols-2 gap-6">
       {tests.map((test) => {
-        const totalCandidates = test.allowedCandidates.length;
-
-        const attempted = test.allowedCandidates.filter(
-          (c) => c.hasAttempted
-        ).length;
-
-        const notStarted = totalCandidates - attempted;
-
-        // Active count will come from TestAttempt later
-        const active = 0;
+        const {
+          not_started = 0,
+          in_progress = 0,
+          submitted = 0,
+          terminated = 0,
+        } = test.attemptStats || {};
 
         return (
           <Card
@@ -81,13 +99,13 @@ const ActiveTests = () => {
             </div>
 
             {/* CANDIDATE STATS */}
-            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="mt-4 grid grid-cols-4 gap-3 text-center">
               <div className="bg-slate-900 rounded p-2">
                 <p className="text-xs text-slate-400">
                   Not Started
                 </p>
                 <p className="text-lg font-bold text-slate-200">
-                  {notStarted}
+                  {not_started}
                 </p>
               </div>
 
@@ -96,7 +114,7 @@ const ActiveTests = () => {
                   Active
                 </p>
                 <p className="text-lg font-bold text-blue-400">
-                  {active}
+                  {in_progress}
                 </p>
               </div>
 
@@ -105,7 +123,16 @@ const ActiveTests = () => {
                   Submitted
                 </p>
                 <p className="text-lg font-bold text-green-400">
-                  {attempted}
+                  {submitted}
+                </p>
+              </div>
+
+              <div className="bg-slate-900 rounded p-2">
+                <p className="text-xs text-slate-400">
+                  Terminated
+                </p>
+                <p className="text-lg font-bold text-red-400">
+                  {terminated}
                 </p>
               </div>
             </div>
@@ -117,3 +144,4 @@ const ActiveTests = () => {
 };
 
 export default ActiveTests;
+
