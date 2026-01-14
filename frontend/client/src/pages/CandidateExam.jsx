@@ -10,6 +10,12 @@ import Editor from "@monaco-editor/react";
 import { toast } from "react-toastify";
 import { exitFullscreen } from "../utils/fullscreen";
 
+const DEFAULT_BOILERPLATES = {
+  cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    return 0;\n}`,
+  python: `import sys\n\ndef solve():\n    # Write your code here\n    pass\n\nif __name__ == "__main__":\n    solve()`,
+  java: `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Write your code here\n    }\n}`,
+};
+
 const CandidateExam = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -493,6 +499,7 @@ const CandidateExam = () => {
     const resolvedCode =
       savedCoding?.code ??
       currentQuestion.coding?.boilerplateCode?.[resolvedLanguage] ??
+      DEFAULT_BOILERPLATES[resolvedLanguage] ??
       "";
 
     // Important: update language first, then code
@@ -645,6 +652,19 @@ const CandidateExam = () => {
                       const newLang = e.target.value;
                       setLanguage(newLang);
 
+                      const savedAnswer =
+                        answers[currentQuestion._id]?.codingAnswer;
+                      const hasSavedCodeForLang =
+                        savedAnswer?.language === newLang && savedAnswer?.code;
+
+                      const newCode = hasSavedCodeForLang
+                        ? savedAnswer.code
+                        : currentQuestion.coding?.boilerplateCode?.[newLang] ||
+                          DEFAULT_BOILERPLATES[newLang] ||
+                          "";
+
+                      setCode(newCode);
+
                       // Update answer state immediately
                       setAnswers((prev) => ({
                         ...prev,
@@ -652,7 +672,7 @@ const CandidateExam = () => {
                           ...prev[currentQuestion._id],
                           codingAnswer: {
                             ...(prev[currentQuestion._id]?.codingAnswer || {}),
-                            code: code,
+                            code: newCode,
                             language: newLang,
                           },
                         },

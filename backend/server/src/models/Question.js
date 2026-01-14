@@ -76,11 +76,20 @@ int main() {
     },
     python: {
       type: String,
-      default: `# write your code here`,
+      default: `import sys
+
+def solve():
+    # Write your code here
+    pass
+
+if __name__ == "__main__":
+    solve()`,
     },
     java: {
       type: String,
-      default: `public class Main {
+      default: `import java.util.*;
+
+public class Main {
     public static void main(String[] args) {
         // write your code here
     }
