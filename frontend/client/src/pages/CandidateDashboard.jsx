@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
 import { toastInfo, toastSuccess } from "../utils/toast";
-import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();

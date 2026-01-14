@@ -5,7 +5,7 @@ import { useExam } from "../context/ExamContext";
 import useFaceDetection from "../hooks/useFaceDetection.jsx";
 import api from "../services/api";
 import { toast } from "react-toastify";
-import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
 
 const PreCheck = () => {
   const { testId } = useParams();

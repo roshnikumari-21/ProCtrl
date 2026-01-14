@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Card } from "../components/UI";
 import { toastInfo } from "../utils/toast";
-import useBlockBackNavigation from "../hooks/useBlockBackNavigation";
+import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
 
 const Home = () => {
   const navigate = useNavigate();
