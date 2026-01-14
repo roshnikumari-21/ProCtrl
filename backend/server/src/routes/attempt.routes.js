@@ -5,7 +5,6 @@ import validateEmail from "../utils/validateEmail.js";
 import bcrypt from "bcryptjs";
 import { authorize } from "../middleware/role.middleware.js";
 import { authenticate } from "../middleware/auth.middleware.js";
-import { evaluateDescriptiveAnswer } from "../utils/nlpEvaluation.js";
 
 const router = express.Router();
 
@@ -42,7 +41,7 @@ router.get(
       const attempts = await TestAttempt.find({
         candidateEmail: user.email,
       })
-        .populate("test", "title duration")
+        .populate("test", "title duration totalScore")
         .sort({ createdAt: -1 });
 
       /* --------------------------------
@@ -60,7 +59,7 @@ router.get(
         },
 
         score: a.score ?? null,
-        totalMarks: a.totalMarks ?? null,
+        totalMarks: a.test?.totalScore ?? a.totalMarks ?? 0,
         violations: Array.isArray(a.violations) ? a.violations.length : 0,
         integrityScore: a.integrityScore ?? 100,
       }));
@@ -381,55 +380,8 @@ router.post("/submit/:attemptId", async (req, res) => {
       });
     }
 
-    // Fetch the test with questions populated
-    const test = await Test.findById(attempt.test).populate("questions");
-    let totalScore = 0;
+    const totalScore = await attempt.calculateScore();
 
-    // Create a map for quick question lookup
-    const questionMap = new Map();
-    for (const q of test.questions) {
-      questionMap.set(q._id.toString(), q);
-    }
-
-    for (const ans of attempt.answers) {
-      const q = questionMap.get(ans.question.toString());
-      if (!q) continue;
-      // MCQ
-      if (q.type === "mcq" && ans.mcqAnswer !== undefined) {
-        if (ans.mcqAnswer === q.mcq.correctAnswer) {
-          totalScore += q.marks;
-        }
-      }
-
-      // Descriptive
-      if (q.type === "descriptive" && ans.descriptiveAnswer) {
-        // Calculate score based on NLP similarity with sample answer
-        const score = evaluateDescriptiveAnswer(
-          ans.descriptiveAnswer,
-          q.descriptive?.sampleAnswer || "",
-          q.marks
-        );
-        totalScore += score;
-      }
-
-      // Coding: award full marks if verdict is 'Accepted' and all test cases passed
-      if (
-        q.type === "coding" &&
-        ans.codingAnswer &&
-        ans.codingAnswer.verdict === "Accepted"
-      ) {
-        if (
-          ans.codingAnswer.passedTestCases ===
-            ans.codingAnswer.totalTestCases &&
-          ans.codingAnswer.totalTestCases > 0
-        ) {
-          totalScore += q.marks;
-        }
-      }
-      // (Optional) Add logic for descriptive if auto-grading is implemented
-    }
-
-    attempt.score = totalScore;
     attempt.status = "submitted";
     attempt.submittedAt = new Date();
 

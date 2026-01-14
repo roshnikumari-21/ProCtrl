@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import { evaluateDescriptiveAnswer } from "../utils/nlpEvaluation.js";
+
 const answerSchema = new mongoose.Schema({
   question: {
     type: mongoose.Schema.Types.ObjectId,
@@ -129,5 +131,60 @@ const testAttemptSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+testAttemptSchema.methods.calculateScore = async function () {
+  const Test = mongoose.model("Test");
+  // Fetch the test with questions populated
+  const test = await Test.findById(this.test).populate("questions");
+  if (!test) return 0;
+
+  let totalScore = 0;
+
+  // Create a map for quick question lookup
+  const questionMap = new Map();
+  for (const q of test.questions) {
+    questionMap.set(q._id.toString(), q);
+  }
+
+  for (const ans of this.answers) {
+    const q = questionMap.get(ans.question.toString());
+    if (!q) continue;
+
+    // MCQ
+    if (q.type === "mcq" && ans.mcqAnswer !== undefined) {
+      if (ans.mcqAnswer === q.mcq.correctAnswer) {
+        totalScore += q.marks;
+      }
+    }
+
+    // Descriptive
+    if (q.type === "descriptive" && ans.descriptiveAnswer) {
+      // Calculate score based on NLP similarity with sample answer
+      const score = evaluateDescriptiveAnswer(
+        ans.descriptiveAnswer,
+        q.descriptive?.sampleAnswer || "",
+        q.marks
+      );
+      totalScore += score;
+    }
+
+    // Coding: award full marks if verdict is 'Accepted' and all test cases passed
+    if (
+      q.type === "coding" &&
+      ans.codingAnswer &&
+      ans.codingAnswer.verdict === "Accepted"
+    ) {
+      if (
+        ans.codingAnswer.passedTestCases === ans.codingAnswer.totalTestCases &&
+        ans.codingAnswer.totalTestCases > 0
+      ) {
+        totalScore += q.marks;
+      }
+    }
+  }
+
+  this.score = totalScore;
+  return this.score;
+};
 
 export default mongoose.model("TestAttempt", testAttemptSchema);
