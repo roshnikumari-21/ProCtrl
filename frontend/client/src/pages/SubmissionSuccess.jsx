@@ -70,13 +70,12 @@ const SubmissionSuccess = () => {
 
       toast.success("Thank you for your feedback!");
 
-      // reset form & navigate home
+      // reset form & navigate to candidate dashboard
       setRating(null);
       setHeadline("");
       setComments("");
 
-      // Optionally redirect or allow user to stay
-      // navigate("/");
+      navigate("/candidatedash");
     } catch (err) {
       console.error("Feedback storage error:", err);
       toast.error("Unable to save feedback. Please try again.");
@@ -173,7 +172,7 @@ const SubmissionSuccess = () => {
               className="h-12 font-black uppercase tracking-widest"
               disabled={submitting}
             >
-              {submitting ? "Submitting..." : "Submit Feedback"}
+              {submitting ? "Submitting..." : "Submit"}
             </Button>
           </form>
         </Card>
@@ -196,22 +195,9 @@ const SubmissionSuccess = () => {
           </div>
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => navigate("/candidatedash")}
-            >
-              Back to Dashboard
-            </Button>
+            
 
-            <Button
-              variant="ghost"
-              fullWidth
-              className="border border-slate-800"
-              onClick={() => navigate("/join")}
-            >
-              Join Another Test
-            </Button>
+           
           </div>
         </Card>
       </div>

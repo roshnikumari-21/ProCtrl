@@ -29,6 +29,11 @@ const testSchema = new mongoose.Schema(
       default: ["cpp", "python", "java"], // Default to all
     },
 
+    totalScore: {
+      type: Number,
+      default: 0,
+    },
+
     questions: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -68,5 +73,14 @@ const testSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Method to calculate total score
+testSchema.methods.calculateTotalScore = async function () {
+  await this.populate("questions");
+  this.totalScore = this.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+  this.depopulate("questions");
+  await this.save();
+  return this.totalScore;
+};
 
 export default mongoose.model("Test", testSchema);

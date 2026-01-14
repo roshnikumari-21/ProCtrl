@@ -109,6 +109,8 @@ router.post("/", authenticate, authorize("admin"), async (req, res) => {
       createdBy: req.user.id,
     });
 
+    await test.calculateTotalScore();
+
     res.status(201).json({
       message: "Test created successfully",
       testId: test.testId,

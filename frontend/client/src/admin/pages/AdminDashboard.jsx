@@ -7,7 +7,7 @@ const AdminDashboard = () => {
   // Pull admin details from login payload stored in localStorage.
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("admin_user");
+      const stored = sessionStorage.getItem("admin_user");
       if (stored) {
         setAdmin(JSON.parse(stored));
       }

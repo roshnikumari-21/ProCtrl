@@ -3,9 +3,8 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
-
 const AdminRoute = () => {
-  const token = localStorage.getItem("admin_token");
+  const token = sessionStorage.getItem("admin_token");
 
   // ❌ Not logged in
   if (!token) {
@@ -24,8 +23,8 @@ const AdminRoute = () => {
     return <Outlet />;
   } catch (err) {
     // ❌ Invalid / expired token
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_user");
+    sessionStorage.removeItem("admin_token");
+    sessionStorage.removeItem("admin_user");
     return <Navigate to="/admin/login" replace />;
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "../../services/api";
@@ -8,6 +8,12 @@ import "react-toastify/dist/ReactToastify.css";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem("admin_token")) {
+      navigate("/admin/dashboard");
+    }
+  }, [navigate]);
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -37,9 +43,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const endpoint = isLogin
-        ? "/auth/admin/login"
-        : "/auth/admin/register";
+      const endpoint = isLogin ? "/auth/admin/login" : "/auth/admin/register";
 
       const payload = isLogin
         ? {
@@ -55,11 +59,8 @@ const AdminLogin = () => {
       const res = await api.post(endpoint, payload);
 
       // ✅ store admin auth
-      localStorage.setItem("admin_token", res.data.token);
-      localStorage.setItem(
-        "admin_user",
-        JSON.stringify(res.data.user)
-      );
+      sessionStorage.setItem("admin_token", res.data.token);
+      sessionStorage.setItem("admin_user", JSON.stringify(res.data.user));
 
       toast.success(
         isLogin ? "Admin login successful" : "Admin registered successfully"
@@ -67,9 +68,7 @@ const AdminLogin = () => {
 
       navigate("/admin/dashboard");
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Authentication failed"
-      );
+      toast.error(err.response?.data?.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -87,18 +86,13 @@ const AdminLogin = () => {
         token: googleToken,
       });
 
-      localStorage.setItem("admin_token", res.data.token);
-      localStorage.setItem(
-        "admin_user",
-        JSON.stringify(res.data.user)
-      );
+      sessionStorage.setItem("admin_token", res.data.token);
+      sessionStorage.setItem("admin_user", JSON.stringify(res.data.user));
 
       toast.success("Google admin login successful");
       navigate("/admin/dashboard");
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Google login failed"
-      );
+      toast.error(err.response?.data?.message || "Google login failed");
     } finally {
       setLoading(false);
     }
@@ -146,9 +140,7 @@ const AdminLogin = () => {
             <div className="w-full border-t border-slate-800"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-slate-900 px-3 text-slate-500">
-              OR
-            </span>
+            <span className="bg-slate-900 px-3 text-slate-500">OR</span>
           </div>
         </div>
 
@@ -198,11 +190,7 @@ const AdminLogin = () => {
             disabled={loading}
             className="h-12 font-black uppercase tracking-widest text-xs"
           >
-            {loading
-              ? "Please wait..."
-              : isLogin
-              ? "Login"
-              : "Register"}
+            {loading ? "Please wait..." : isLogin ? "Login" : "Register"}
           </Button>
         </form>
 
