@@ -9,3 +9,6 @@ export const getAttemptById = (attemptId) =>
 // services/monitoringApi.js
 export const getAttemptsByTest = (testId) =>
   api.get(`/admin/monitoring/tests/${testId}/attempts`);
+
+export const getAttemptStatsByTest = (testId) =>
+  api.get(`/admin/monitoring/tests/${testId}/attempt-stats`);
