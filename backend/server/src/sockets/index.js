@@ -4,19 +4,19 @@ export default function initSockets(io) {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
-   // Admin joins a specific attempt room to monitor
+    // Admin joins a specific attempt room to monitor
     socket.on("admin:join", ({ attemptId }) => {
       socket.join(attemptId);
       console.log(`Admin joined monitoring room: ${attemptId}`);
       // Notify candidate that admin is watching (so candidate can send offer)
-      socket.to(attemptId).emit("admin:ready"); 
+      socket.to(attemptId).emit("admin:ready");
     });
 
-   // Candidate joins
+    // Candidate joins
     socket.on("candidate:join", async ({ attemptId, testId }) => {
-      socket.join(testId);   // For exam-wide broadcasts
+      socket.join(testId); // For exam-wide broadcasts
       socket.join(attemptId); // For 1:1 WebRTC with Admin
-      
+
       console.log(`Candidate joined rooms: ${testId} & ${attemptId}`);
       io.to(testId).emit("candidate:update", {
         attemptId,
@@ -42,8 +42,8 @@ export default function initSockets(io) {
 
         if (attempt) {
           io.to(attemptId).emit("candidate:terminated", { reason });
-          socket.emit("admin:terminate_success", { 
-             message: "Attempt terminated successfully." 
+          socket.emit("admin:terminate_success", {
+            message: "Attempt terminated successfully.",
           });
         }
       } catch (err) {
@@ -87,10 +87,24 @@ export default function initSockets(io) {
       });
     });
     socket.on("candidate:submit", async ({ attemptId, testId }) => {
-      await TestAttempt.findByIdAndUpdate(attemptId, {
-        status: "submitted",
-        submittedAt: new Date(),
-      });
+      const attempt = await TestAttempt.findById(attemptId);
+      if (attempt) {
+        // Remove inevitable fullscreen_exit on submit
+        if (attempt.violations.length > 0) {
+          const lastV = attempt.violations[attempt.violations.length - 1];
+          if (lastV.type === "fullscreen_exit") {
+            attempt.violations.pop();
+            // Restore penalty (5 points for fullscreen_exit)
+            attempt.integrityScore = Math.min(
+              100,
+              (attempt.integrityScore || 0) + 5
+            );
+          }
+        }
+        attempt.status = "submitted";
+        attempt.submittedAt = new Date();
+        await attempt.save();
+      }
 
       io.to(testId).emit("candidate:update", {
         attemptId,
@@ -116,6 +130,29 @@ export default function initSockets(io) {
             console.error(`[Socket] Failed to find attempt ${attemptId}`);
             return;
           }
+
+          if (["submitted", "terminated"].includes(attempt.status)) {
+            return;
+          }
+
+          // Update integrity score
+          const penalties = {
+            multiple_faces: 10,
+            face_not_detected: 5,
+            fullscreen_exit: 5,
+            tab_switch: 8,
+            window_blur: 5,
+            copy_attempt: 10,
+            paste_attempt: 10,
+            devtools_detected: 20,
+            audio_detected: 10,
+          };
+
+          const penalty = penalties[type] || 5;
+          attempt.integrityScore = Math.max(
+            0,
+            (attempt.integrityScore || 100) - penalty
+          );
 
           console.log(
             `[Socket] pushing violation to attempt ${attemptId}. Current count: ${attempt.violations.length}`

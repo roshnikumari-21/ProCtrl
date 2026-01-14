@@ -116,6 +116,16 @@ const testAttemptSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    confidenceScore: {
+      type: Number,
+      default: 0,
+    },
+
+    integrityScore: {
+      type: Number,
+      default: 100,
+    },
   },
   { timestamps: true }
 );

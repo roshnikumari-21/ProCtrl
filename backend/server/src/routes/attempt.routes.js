@@ -62,6 +62,7 @@ router.get(
         score: a.score ?? null,
         totalMarks: a.totalMarks ?? null,
         violations: Array.isArray(a.violations) ? a.violations.length : 0,
+        integrityScore: a.integrityScore ?? 100,
       }));
 
       res.json(formatted);

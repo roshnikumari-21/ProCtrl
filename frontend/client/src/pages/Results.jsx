@@ -30,8 +30,7 @@ const Results = () => {
       setAttempts(response.data || []);
     } catch (error) {
       toast.error(
-        error.response?.data?.message ||
-          "Unable to load your test results"
+        error.response?.data?.message || "Unable to load your test results"
       );
     } finally {
       setLoading(false);
@@ -56,6 +55,12 @@ const Results = () => {
     return "text-red-400";
   };
 
+  const getIntegrityColor = (score) => {
+    if (score >= 90) return "text-emerald-400";
+    if (score >= 70) return "text-amber-400";
+    return "text-red-400";
+  };
+
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case "submitted":
@@ -73,7 +78,6 @@ const Results = () => {
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-6xl mx-auto">
-
         {/* HEADER */}
         <Card className="mb-8 p-8 bg-slate-900 border border-slate-800 shadow-2xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -136,8 +140,7 @@ const Results = () => {
                 key={attempt._id}
                 className="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
               >
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                   {/* TEST */}
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
@@ -160,6 +163,22 @@ const Results = () => {
                     >
                       {attempt.status.replace("_", " ").toUpperCase()}
                     </span>
+                  </div>
+
+                  {/* INTEGRITY */}
+                  <div className="text-center">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                      Integrity
+                    </p>
+                    <div className="flex items-baseline justify-center gap-1 mt-1">
+                      <span
+                        className={`text-3xl font-black ${getIntegrityColor(
+                          attempt.integrityScore || 100
+                        )}`}
+                      >
+                        {attempt.integrityScore ?? 100}%
+                      </span>
+                    </div>
                   </div>
 
                   {/* SCORE */}
@@ -187,9 +206,7 @@ const Results = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() =>
-                        navigate(`/attempt/${attempt._id}`)
-                      }
+                      onClick={() => navigate(`/attempt/${attempt._id}`)}
                     >
                       View Details
                     </Button>
@@ -221,15 +238,10 @@ const Results = () => {
 
         {/* FOOTER ACTIONS */}
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/candidatedash")}
-          >
+          <Button variant="ghost" onClick={() => navigate("/candidatedash")}>
             Back to Dashboard
           </Button>
-          <Button onClick={() => navigate("/join")}>
-            Join Another Test
-          </Button>
+          <Button onClick={() => navigate("/join")}>Join Another Test</Button>
         </div>
       </div>
     </div>
@@ -237,4 +249,3 @@ const Results = () => {
 };
 
 export default Results;
-
