@@ -6,6 +6,8 @@ import LiveMonitor from "./LiveMonitor";
 import ViolationTimeline from "./ViolationTimeline";
 import AdminActions from "./AdminActions";
 import { getAttemptById } from "../../services/monitoringApi";
+import ViolationSummary from "./ViolationSummary";
+
 
 const CandidateDetails = () => {
   const { attemptId } = useParams();
@@ -64,20 +66,27 @@ const CandidateDetails = () => {
         {duration !== null && <span>Duration Used: {duration} min</span>}
       </Card>
 
-      {/* MAIN GRID */}
-      <div
-        className={`grid grid-cols-1 gap-6 ${
-          attempt.status === "in_progress" ? "lg:grid-cols-2" : ""
-        }`}
-      >
-        {attempt.status === "in_progress" && (
-          <LiveMonitor attemptId={attempt._id} />
-        )}
-        <ViolationTimeline violations={attempt.violations} />
-      </div>
+{/* MAIN GRID */}
+<div
+  className={`grid grid-cols-1 gap-6 ${
+    attempt.status === "in_progress" ? "lg:grid-cols-2" : ""
+  }`}
+>
+  {attempt.status === "in_progress" && (
+    <LiveMonitor attemptId={attempt._id} />
+  )}
+
+  <ViolationTimeline violations={attempt.violations} />
+</div>
+
+{/* POST-EXAM VIOLATION SUMMARY */}
+{attempt.status !== "in_progress" && (
+  <ViolationSummary violations={attempt.violations} />
+)}
+
 
       {/* ADMIN ACTIONS */}
-      <AdminActions attemptId={attempt._id} testId={attempt.test} />
+      {attempt.status === "in_progress" && (<AdminActions attemptId={attempt._id} testId={attempt.test} />)}
     </div>
   );
 };

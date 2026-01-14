@@ -44,19 +44,6 @@ const MonitoringHome = () => {
         </Card>
       </div>
 
-      {/* SYSTEM STATUS */}
-      <Card className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-green-400">●</span>
-          <span className="text-slate-300">
-            Monitoring system active
-          </span>
-        </div>
-
-        <p className="text-xs text-slate-400">
-          Live events only · No video or audio recordings stored
-        </p>
-      </Card>
 
       {/* TOP-LEVEL TABS */}
       <Card className="p-4 flex gap-4">

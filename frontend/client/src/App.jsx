@@ -3,6 +3,7 @@ import { ExamProvider } from "./context/ExamContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Navigate } from "react-router-dom";
 
 /* Candidate */
 import Home from "./pages/Home";
@@ -45,11 +46,10 @@ function App() {
                 Candidate Routes
             ======================= */}
             <Route element={<CandidateLayout />}>
-
               <Route path="/" element={<Home />} />
-               <Route path="/candidatelogin" element={<CandidateLogin />} />
-               <Route path="/candidatedash" element={<CandidateDashboard />} />
-                <Route path="/candidateresult" element={<Results />} />
+              <Route path="/candidatelogin" element={<CandidateLogin />} />
+              <Route path="/candidatedash" element={<CandidateDashboard />} />
+              <Route path="/candidateresult" element={<Results />} />
               <Route path="/join" element={<JoinTest />} />
               <Route path="/instructions/:testId" element={<Instructions />} />
               <Route path="/precheck/:testId" element={<PreCheck />} />
@@ -76,25 +76,35 @@ function App() {
                 <Route path="tests/create" element={<CreateTest />} />
                 <Route path="tests/:id" element={<TestDetails />} />
                 <Route path="monitoring" element={<MonitoringHome />}>
+                  {/* DEFAULT TAB */}
+                  <Route index element={<Navigate to="active" replace />} />
+
                   <Route path="active" element={<ActiveTests />} />
                   <Route path="past" element={<PastTests />} />
                 </Route>
-                <Route path="monitoring/attempts/:attemptId" element={<CandidateDetails />} />
-                <Route path="monitoring/tests/:id" element={<TestMonitoring />} />
+
+                <Route
+                  path="monitoring/attempts/:attemptId"
+                  element={<CandidateDetails />}
+                />
+                <Route
+                  path="monitoring/tests/:id"
+                  element={<TestMonitoring />}
+                />
                 <Route path="results" element={<TestResults />} />
               </Route>
             </Route>
           </Routes>
           <ToastContainer
-        position="top-right"
-        autoClose={4000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        draggable
-        theme="dark"
-      />
+            position="top-right"
+            autoClose={4000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            pauseOnHover
+            draggable
+            theme="dark"
+          />
         </ExamProvider>
       </GoogleOAuthProvider>
     </BrowserRouter>

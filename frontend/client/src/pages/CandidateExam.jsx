@@ -177,101 +177,146 @@ useEffect(() => {
     }
   }, []);
 
-
 useEffect(() => {
     if (!attemptId || !test) return;
 
-    // 1. Initialize PeerConnection
+    // --- A. JOIN ROOM ---
+    console.log("Joining socket room:", attemptId);
+    socket.emit("candidate:join", {
+      attemptId,
+      testId: test.testId,
+    });
+
+    // --- B. SETUP WEBRTC ---
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
     pcRef.current = pc;
 
-    // 2. Handle ICE Candidates
+    // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("webrtc:ice", {
-          attemptId,
-          candidate: event.candidate,
-        });
+        socket.emit("webrtc:ice", { attemptId, candidate: event.candidate });
       }
     };
 
-    // 3. Get Camera Stream (ONCE for both Preview and WebRTC)
-    const startStream = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true, // Capture audio for proctoring (Admin can mute on their end)
-        });
-        
-        streamRef.current = stream;
-        
-        // A. Set Local Preview
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-
-        // B. Add Tracks to PC
-        stream.getTracks().forEach((track) => {
-          pc.addTrack(track, stream);
-        });
-
-        // C. Send Offer
-        createAndSendOffer();
-
-      } catch (err) {
-        console.error("Camera Error:", err);
-        toast.error("Failed to access camera. Please allow permissions.");
-      }
-    };
-
-    startStream();
-
-    // 4. Helper to Create Offer
+    // Helper: Create & Send Offer
     const createAndSendOffer = async () => {
       if (!pcRef.current) return;
       try {
+        console.log("Creating WebRTC Offer...");
         const offer = await pcRef.current.createOffer();
         await pcRef.current.setLocalDescription(offer);
         socket.emit("webrtc:offer", { attemptId, offer });
       } catch (e) {
-        console.error("Error creating offer:", e);
+        console.error("WebRTC Offer Error:", e);
       }
     };
 
-    // 5. Socket Listeners
-    socket.on("webrtc:answer", async (answer) => {
+    // --- C. GET CAMERA & ADD TO WEBRTC ---
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: true 
+        });
+        streamRef.current = stream;
+        
+        // Show in local video element
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        // Add tracks to PeerConnection
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+        // Attempt to offer immediately (in case Admin is already there)
+        createAndSendOffer();
+      } catch (err) {
+        console.error("Camera Error:", err);
+        toast.error("Camera access failed. Please check permissions.");
+      }
+    };
+    startCamera();
+
+    // --- D. SOCKET EVENT LISTENERS ---
+
+    // 1. WebRTC Answer from Admin
+    const handleAnswer = async (answer) => {
       if (pcRef.current) {
         await pcRef.current.setRemoteDescription(answer);
       }
-    });
+    };
 
-    socket.on("webrtc:ice", async (candidate) => {
+    // 2. ICE Candidates from Admin
+    const handleIce = async (candidate) => {
       if (pcRef.current) {
-        try {
-          await pcRef.current.addIceCandidate(candidate);
-        } catch (e) { console.error("Error adding ICE:", e); }
+        try { await pcRef.current.addIceCandidate(candidate); } catch(e){}
       }
-    });
+    };
 
-    // If Admin joins late, they emit 'admin:ready'. Resend offer.
-    socket.on("admin:ready", () => {
-      console.log("Admin joined, sending offer...");
+    // 3. Admin Joined (Admin triggers this) -> Resend Offer
+    const handleAdminReady = () => {
+      console.log("Admin is ready. Sending offer...");
       createAndSendOffer();
-    });
+    };
 
-    // Cleanup
-    return () => {
+    // 4. Warning Handler
+    const handleWarn = ({ message }) => {
+      const audio = new Audio('/assets/sounds/warning.mp3'); 
+      audio.play().catch(() => {});
+      
+      toast.warn(
+        <div>
+          <p className="font-bold">⚠️ PROCTOR WARNING</p>
+          <p>{message}</p>
+        </div>,
+        {
+          position: "top-center",
+          autoClose: 8000,
+          theme: "colored",
+        }
+      );
+    };
+
+    // 5. Termination Handler
+    const handleTermination = async ({ reason }) => {
+      setIsTerminated(true);
+      setTerminationReason(reason || "Violation of exam rules.");
+      
+      // Stop Camera
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
+      
+      await exitFullscreen();
+      localStorage.removeItem("examState");
+      setExamState((prev) => ({ ...prev, status: "terminated" }));
+    };
+
+    // Attach Listeners
+    socket.on("webrtc:answer", handleAnswer);
+    socket.on("webrtc:ice", handleIce);
+    socket.on("admin:ready", handleAdminReady);
+    socket.on("candidate:warn", handleWarn);
+    socket.on("candidate:terminated", handleTermination);
+
+    // CLEANUP
+    return () => {
+      // Clean up media
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      // Close PeerConnection
       if (pcRef.current) {
         pcRef.current.close();
       }
-      socket.off("webrtc:answer");
-      socket.off("webrtc:ice");
-      socket.off("admin:ready");
+      // Remove Listeners
+      socket.off("webrtc:answer", handleAnswer);
+      socket.off("webrtc:ice", handleIce);
+      socket.off("admin:ready", handleAdminReady);
+      socket.off("candidate:warn", handleWarn);
+      socket.off("candidate:terminated", handleTermination);
     };
   }, [attemptId, test]);
 
@@ -320,7 +365,6 @@ useEffect(() => {
       setIsRunning(false);
     }
   };
-
   const submitCode = async () => {
     try {
       setIsSubmittingCode(true);
@@ -513,7 +557,6 @@ useEffect(() => {
       </div>
     );
   }
-
 
   /* ================= RENDER ================= */
   return (

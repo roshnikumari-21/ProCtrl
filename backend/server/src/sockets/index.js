@@ -18,8 +18,6 @@ export default function initSockets(io) {
       socket.join(attemptId); // For 1:1 WebRTC with Admin
       
       console.log(`Candidate joined rooms: ${testId} & ${attemptId}`);
-
-      // Notify admin the candidate is online
       io.to(testId).emit("candidate:update", {
         attemptId,
         status: "online",
@@ -27,29 +25,23 @@ export default function initSockets(io) {
     });
 
     socket.on("admin:warn", ({ attemptId, message }) => {
-      // Emit directly to the candidate's room (using attemptId)
       io.to(attemptId).emit("candidate:warn", { message });
     });
 
     socket.on("admin:terminate", async ({ attemptId, reason }) => {
       try {
-        // 1. Update DB immediately to stop further auto-saves/submissions
         const attempt = await TestAttempt.findByIdAndUpdate(
           attemptId,
           {
             status: "terminated",
             terminationReason: reason,
-            submittedAt: new Date(), // Mark as ended now
+            submittedAt: new Date(),
           },
           { new: true }
         );
 
         if (attempt) {
-          // 2. Notify the Candidate to block their screen
           io.to(attemptId).emit("candidate:terminated", { reason });
-          
-          // 3. Notify Admin (confirmation)
-          // Using socket.emit sends back to the sender (Admin)
           socket.emit("admin:terminate_success", { 
              message: "Attempt terminated successfully." 
           });
@@ -58,27 +50,15 @@ export default function initSockets(io) {
         console.error("Termination error:", err);
       }
     });
-
-    // --- WEBRTC SIGNALING (Relay between Admin & Candidate) ---
-
-    // Candidate sends Offer -> Admin
     socket.on("webrtc:offer", ({ attemptId, offer }) => {
       socket.to(attemptId).emit("webrtc:offer", offer);
     });
-
-    // Admin sends Answer -> Candidate
     socket.on("webrtc:answer", ({ attemptId, answer }) => {
       socket.to(attemptId).emit("webrtc:answer", answer);
     });
-
-    // Exchange ICE Candidates
     socket.on("webrtc:ice", ({ attemptId, candidate }) => {
       socket.to(attemptId).emit("webrtc:ice", candidate);
     });
-
-    /**
-     * Candidate verified
-     */
     socket.on("candidate:verified", async ({ attemptId, testId }) => {
       await TestAttempt.findByIdAndUpdate(attemptId, {
         status: "verified",
@@ -89,10 +69,6 @@ export default function initSockets(io) {
         status: "verified",
       });
     });
-
-    /**
-     * Candidate started test
-     */
     socket.on("candidate:start", async ({ attemptId, testId }) => {
       await TestAttempt.findByIdAndUpdate(attemptId, {
         status: "in_progress",
@@ -104,20 +80,12 @@ export default function initSockets(io) {
         status: "in_progress",
       });
     });
-
-    /**
-     * Candidate heartbeat
-     */
     socket.on("candidate:heartbeat", ({ attemptId, testId }) => {
       io.to(testId).emit("candidate:heartbeat", {
         attemptId,
         timestamp: new Date(),
       });
     });
-
-    /**
-     * Candidate submitted test
-     */
     socket.on("candidate:submit", async ({ attemptId, testId }) => {
       await TestAttempt.findByIdAndUpdate(attemptId, {
         status: "submitted",
@@ -129,10 +97,6 @@ export default function initSockets(io) {
         status: "submitted",
       });
     });
-
-    /**
-     * Candidate violation
-     */
     socket.on(
       "candidate:violation",
       async ({ attemptId, testId, type, image, timestamp }) => {
@@ -180,11 +144,6 @@ export default function initSockets(io) {
         }
       }
     );
-
-
-    /**
-     * Disconnect handling
-     */
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
     });
