@@ -13,13 +13,18 @@ const router = express.Router();
  */
 router.get(
   "/attempts/:attemptId",
-  authenticate,
-  authorize("admin"),
   async (req, res) => {
     try {
       const attempt = await TestAttempt.findById(req.params.attemptId)
-        .populate("test", "title duration activeTill")
-        .populate("answers.question", "questionText type marks");
+        .populate({
+          path: "test",
+          select: "title duration totalScore",
+          populate: {
+            path: "questions",
+            model: "Question",
+          },
+        })
+        .populate("answers.question");
 
       if (!attempt) {
         return res.status(404).json({ message: "Attempt not found" });
@@ -32,6 +37,7 @@ router.get(
     }
   }
 );
+
 
 // GET all attempts for a test (ADMIN)
 router.get(

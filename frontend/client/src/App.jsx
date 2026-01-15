@@ -35,6 +35,7 @@ import CandidateLogin from "./pages/CandidateLogin";
 import CandidateDashboard from "./pages/CandidateDashboard";
 import Results from "./pages/Results";
 import CandidateDetails from "./admin/pages/candidate monitoring/CandidateDetails";
+import AttemptDetails from "./pages/AttemptDetails";
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             ======================= */}
             <Route element={<CandidateLayout />}>
               <Route path="/" element={<Home />} />
+              <Route path="/attempt/:attemptId" element={<AttemptDetails />} />
               <Route path="/candidatelogin" element={<CandidateLogin />} />
               <Route path="/candidatedash" element={<CandidateDashboard />} />
               <Route path="/candidateresult" element={<Results />} />

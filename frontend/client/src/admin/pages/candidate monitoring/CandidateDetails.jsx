@@ -7,6 +7,7 @@ import ViolationTimeline from "./ViolationTimeline";
 import AdminActions from "./AdminActions";
 import { getAttemptById } from "../../services/monitoringApi";
 import ViolationSummary from "./ViolationSummary";
+import AttemptEvaluation from "./AttemptEvaluation";
 
 
 const CandidateDetails = () => {
@@ -48,7 +49,8 @@ const CandidateDetails = () => {
           email: attempt.candidateEmail,
           attemptId: attempt._id,
           status: attempt.status,
-          integrityScore: 100 - attempt.violations.length * 5,
+          score:`${attempt.score}/${attempt.totalMarks}`,
+          integrityScore: attempt.integrityScore,
         }}
       />
 
@@ -79,10 +81,15 @@ const CandidateDetails = () => {
   <ViolationTimeline violations={attempt.violations} />
 </div>
 
-{/* POST-EXAM VIOLATION SUMMARY */}
 {attempt.status !== "in_progress" && (
   <ViolationSummary violations={attempt.violations} />
 )}
+
+<Card className="p-6">
+  <h2 className="text-xl font-bold mb-4">Answer Evaluation</h2>
+  <AttemptEvaluation attempt={attempt} />
+</Card>
+
 
 
       {/* ADMIN ACTIONS */}

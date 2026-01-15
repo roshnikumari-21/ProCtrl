@@ -38,6 +38,10 @@ const answerSchema = new mongoose.Schema({
       type: String, // compilation/runtime error (optional)
     },
   },
+  marksAwarded: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const violationSchema = new mongoose.Schema({
@@ -160,22 +164,25 @@ testAttemptSchema.methods.calculateScore = async function () {
     const q = questionMap.get(ans.question.toString());
     if (!q) continue;
 
+    let awarded = 0;
+
     // MCQ
     if (q.type === "mcq" && ans.mcqAnswer !== undefined) {
       if (ans.mcqAnswer === q.mcq.correctAnswer) {
-        totalScore += q.marks;
+        awarded = q.marks;
+        totalScore += awarded;
       }
     }
 
     // Descriptive
     if (q.type === "descriptive" && ans.descriptiveAnswer) {
       // Calculate score based on NLP similarity with sample answer
-      const score = evaluateDescriptiveAnswer(
+      awarded = evaluateDescriptiveAnswer(
         ans.descriptiveAnswer,
         q.descriptive?.sampleAnswer || "",
         q.marks
       );
-      totalScore += score;
+      totalScore += awarded;
     }
 
     // Coding: award full marks if verdict is 'Accepted' and all test cases passed
@@ -188,9 +195,13 @@ testAttemptSchema.methods.calculateScore = async function () {
         ans.codingAnswer.passedTestCases === ans.codingAnswer.totalTestCases &&
         ans.codingAnswer.totalTestCases > 0
       ) {
-        totalScore += q.marks;
+        awarded = q.marks;
+        totalScore += awarded;
       }
     }
+
+    ans.marksAwarded = awarded;
+    
   }
 
   this.score = totalScore;

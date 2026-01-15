@@ -37,6 +37,15 @@ const CandidateCard = ({ candidate }) => {
         >
           {candidate.integrityScore}%
         </p>
+
+        <p className="text-xs text-slate-400 mt-2">
+          Score
+        </p>
+        <p
+          className={`text-2xl font-bold`}
+        >
+          {candidate.score}
+        </p>
       </div>
     </Card>
   );
