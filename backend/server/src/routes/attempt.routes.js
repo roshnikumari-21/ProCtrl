@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { authorize } from "../middleware/role.middleware.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 
+
 const router = express.Router();
 
 /**
@@ -24,9 +25,6 @@ router.get(
   authorize("candidate"),
   async (req, res) => {
     try {
-      /* --------------------------------
-         1. Get candidate email from user
-      -------------------------------- */
       const user = await User.findById(req.user.id).select("email role");
 
       if (!user || user.role !== "candidate") {
@@ -59,7 +57,7 @@ router.get(
         },
 
         score: a.score ?? null,
-        totalMarks: a.test?.totalScore ?? a.totalMarks ?? 0,
+        totalMarks: a.totalMarks ?? 0,
         violations: Array.isArray(a.violations) ? a.violations.length : 0,
         integrityScore: a.integrityScore ?? 100,
       }));
@@ -158,10 +156,8 @@ router.post("/join", async (req, res) => {
       status: "joined",
     });
 
-    await test.save();
-
     /* ---------------- Respond ---------------- */
-    res.json({
+   res.json({
       attemptId: attempt._id,
       test: {
         testId: test.testId,
@@ -172,10 +168,9 @@ router.post("/join", async (req, res) => {
           questionText: q.questionText,
           type: q.type,
           marks: q.marks,
-
           mcq: q.type === "mcq" ? q.mcq : undefined,
-          descriptive: q.type === "descriptive" ? q.descriptive : undefined,
-
+          descriptive:
+            q.type === "descriptive" ? q.descriptive : undefined,
           coding:
             q.type === "coding"
               ? {
@@ -191,6 +186,7 @@ router.post("/join", async (req, res) => {
         })),
       },
     });
+
   } catch (err) {
     console.error("Join test error:", err);
     res.status(500).json({
@@ -370,24 +366,23 @@ router.post("/submit/:attemptId", async (req, res) => {
   try {
     const attempt = await TestAttempt.findById(req.params.attemptId);
 
-    if (!attempt) {
-      return res.status(404).json({ message: "Attempt not found" });
+    if (!attempt || attempt.status !== "in_progress") {
+      return res.status(400).json({ message: "Test not in progress" });
     }
 
-    if (attempt.status !== "in_progress") {
-      return res.status(400).json({
-        message: "Test is not in progress",
-      });
-    }
-
-    const totalScore = await attempt.calculateScore();
+    await attempt.calculateScore();
+    await attempt.calculateTotalMarks();
 
     attempt.status = "submitted";
     attempt.submittedAt = new Date();
 
     await attempt.save();
 
-    res.json({ message: "Test submitted successfully", score: totalScore });
+    res.json({
+      message: "Test submitted successfully",
+      score: attempt.score,
+      totalMarks: attempt.totalMarks,
+    });
   } catch (err) {
     console.error("Submit test error:", err);
     res.status(500).json({ message: "Failed to submit test" });
