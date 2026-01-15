@@ -4,6 +4,11 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import validateEmail from "../utils/validateEmail.js";
 import { sendWelcomeEmail } from "../utils/sendEmail.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import cloudinary from "../config/cloudinary.js";
+import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -72,7 +77,6 @@ router.post("/admin/register", async (req, res) => {
     res.status(500).json({ message: "Registration failed" });
   }
 });
-
 
 /* ===============================
    ADMIN LOGIN
@@ -182,7 +186,6 @@ router.post("/candidate/register", async (req, res) => {
   }
 });
 
-
 /* ===============================
    CANDIDATE LOGIN
 =============================== */
@@ -217,6 +220,7 @@ router.post("/candidate/login", async (req, res) => {
         name: candidate.name,
         email: candidate.email,
         role: candidate.role,
+        idCardImage: candidate.idCardImage,
       },
     });
   } catch (err) {
@@ -224,5 +228,85 @@ router.post("/candidate/login", async (req, res) => {
     res.status(500).json({ message: "Login failed" });
   }
 });
+
+/* ===============================
+   ID CARD UPLOAD
+=============================== */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = "uploads/id_cards/";
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Only images are allowed"));
+  },
+});
+
+router.post(
+  "/upload-id-card",
+  authenticate,
+  upload.single("idCard"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "id_cards",
+      });
+
+      // Delete local file
+      fs.unlinkSync(req.file.path);
+
+      const userId = req.user.id;
+      const idCardUrl = result.secure_url;
+
+      // Update with { new: true } to return the updated doc, though not strictly needed here
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { idCardImage: idCardUrl },
+        { new: true }
+      );
+
+      res.status(200).json({
+        message: "ID Card uploaded successfully",
+        filePath: idCardUrl,
+        user: updatedUser,
+      });
+    } catch (err) {
+      console.error("ID Card upload error:", err);
+      // Try to delete file if it exists and upload failed
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ message: "Upload failed: " + err.message });
+    }
+  }
+);
 
 export default router;

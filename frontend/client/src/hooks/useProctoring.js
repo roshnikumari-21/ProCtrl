@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { reportViolation } from "../services/violations";
 import { captureSnapshot } from "../utils/camera";
+import { toast } from "react-toastify";
 
 const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
   useEffect(() => {
@@ -12,6 +13,30 @@ const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
         ? captureSnapshot(videoRef.current)
         : null;
       reportViolation(attemptId, testId, type, image);
+
+      let warningMsg = "Proctoring violation detected!";
+      if (type === "tab_switch") {
+        warningMsg =
+          "Tab switching detected! Repeated violations will lead to termination.";
+      } else if (type === "fullscreen_exit") {
+        warningMsg =
+          "You exited fullscreen! Repeated violations will lead to termination.";
+      } else if (type === "window_blur") {
+        warningMsg = "Window focus lost! Please stay on the test window.";
+      } else if (type === "copy_attempt" || type === "paste_attempt") {
+        warningMsg = "Copy/Paste is disabled during the exam.";
+      } else if (type === "devtools_detected") {
+        warningMsg = "Developer tools detected! This is a severe violation.";
+      }
+
+      toast.warning(warningMsg, {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     };
 
     const onFullscreenChange = () => {

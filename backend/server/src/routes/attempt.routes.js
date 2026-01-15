@@ -204,6 +204,7 @@ router.post("/join", async (req, res) => {
  */
 router.post("/verify/:attemptId", async (req, res) => {
   try {
+    const { referenceImage } = req.body;
     const attempt = await TestAttempt.findById(req.params.attemptId);
     if (!attempt) {
       return res.status(404).json({ message: "Attempt not found" });
@@ -218,6 +219,10 @@ router.post("/verify/:attemptId", async (req, res) => {
       return res.status(403).json({
         message: "Test has expired. Verification is no longer allowed.",
       });
+    }
+
+    if (referenceImage) {
+      attempt.referenceImage = referenceImage;
     }
 
     attempt.status = "verified";

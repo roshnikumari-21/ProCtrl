@@ -85,6 +85,11 @@ const testAttemptSchema = new mongoose.Schema(
       required: true,
     },
 
+    referenceImage: {
+      type: String, // Base64 or URL
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["joined", "verified", "in_progress", "submitted", "terminated"],

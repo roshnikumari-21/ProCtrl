@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
 import { toastInfo, toastSuccess } from "../utils/toast";
 import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
+import { uploadIDCard } from "../services/candidateApi";
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
@@ -26,8 +27,36 @@ const CandidateDashboard = () => {
     }
   }, [navigate]);
 
+  const [uploading, setUploading] = useState(false);
+
   const handleJoinTest = () => navigate("/join");
   const handleViewScores = () => navigate("/candidateresult");
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("idCard", file);
+
+    setUploading(true);
+    try {
+      const response = await uploadIDCard(formData);
+      toastSuccess("ID Card uploaded successfully");
+
+      const updatedCandidate = {
+        ...candidate,
+        idCardImage: response.data.filePath,
+      };
+      setCandidate(updatedCandidate);
+      localStorage.setItem("candidate_user", JSON.stringify(updatedCandidate));
+    } catch (error) {
+      console.error(error);
+      toastInfo(error.response?.data?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("candidate_token");
@@ -127,6 +156,72 @@ const CandidateDashboard = () => {
           </Button>
         </Card>
 
+        {/* ID VERIFICATION */}
+        <Card className="p-6 bg-slate-900 border border-slate-800 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">
+                Verification
+              </p>
+              <h2 className="text-xl font-black text-white">ID Card</h2>
+              <p className="text-slate-500 text-sm mt-1">
+                Upload your ID for face matching.
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-300 font-black">
+              🪪
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            {candidate?.idCardImage ? (
+              <div className="relative w-full h-32 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 group">
+                <img
+                  src={
+                    candidate.idCardImage.startsWith("http")
+                      ? candidate.idCardImage
+                      : `http://localhost:5000/${candidate.idCardImage}`
+                  }
+                  alt="ID Card"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <p className="text-white text-xs font-bold">Uploaded</p>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full h-32 bg-slate-800/50 rounded-lg border border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500">
+                <span>No ID Uploaded</span>
+              </div>
+            )}
+
+            <div className="relative">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="id-upload"
+                disabled={uploading}
+              />
+              <label
+                htmlFor="id-upload"
+                className={`flex items-center justify-center w-full py-3 px-4 rounded-lg font-bold text-sm cursor-pointer transition-all ${
+                  uploading
+                    ? "bg-slate-800 text-slate-500"
+                    : "bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20"
+                }`}
+              >
+                {uploading
+                  ? "Uploading..."
+                  : candidate?.idCardImage
+                  ? "Update ID Card"
+                  : "Upload ID Card"}
+              </label>
+            </div>
+          </div>
+        </Card>
+
         {/* TIPS */}
         <Card className="lg:col-span-3 p-6 bg-slate-900 border border-slate-800 shadow-xl">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-4">
@@ -153,4 +248,3 @@ const CandidateDashboard = () => {
 };
 
 export default CandidateDashboard;
-

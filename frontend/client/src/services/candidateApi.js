@@ -17,3 +17,11 @@ candidateApi.interceptors.request.use(
 );
 
 export default candidateApi;
+
+export const uploadIDCard = (formData) => {
+  return candidateApi.post("/auth/upload-id-card", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};

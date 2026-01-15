@@ -42,6 +42,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    idCardImage: {
+      type: String, // Path to the stored ID card image
+      default: null,
+    },
   },
   { timestamps: true }
 );

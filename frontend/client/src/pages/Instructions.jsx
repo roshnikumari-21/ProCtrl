@@ -215,7 +215,7 @@ const Instructions = () => {
         </div>
 
         <p className="text-center mt-12 text-[10px] text-slate-700 font-black uppercase tracking-[0.3em]">
-          Powered by NexTest
+          Powered by ProCtrl
         </p>
       </div>
     </div>

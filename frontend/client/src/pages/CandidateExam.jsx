@@ -170,7 +170,12 @@ const CandidateExam = () => {
 
   /* ================= PROCTORING ================= */
   useProctoring(attemptId, test?.testId, videoRef, isSubmitted);
-  useFaceDetection(videoRef, attemptId, test?.testId);
+  useFaceDetection(
+    videoRef,
+    attemptId,
+    test?.testId,
+    examState?.referenceImage
+  );
 
   /* ================= FULLSCREEN ================= */
   useEffect(() => {
@@ -453,6 +458,7 @@ const CandidateExam = () => {
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async (auto = false) => {
+    setIsSubmitted(true);
     try {
       await candidateApi.post(`/attempts/submit/${attemptId}`, {
         answers: Object.entries(answers).map(([q, a]) => ({

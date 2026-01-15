@@ -10,7 +10,7 @@ import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
 const PreCheck = () => {
   const { testId } = useParams();
   const navigate = useNavigate();
-  const { examState } = useExam();
+  const { examState, setExamState } = useExam();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [checks, setChecks] = useState({
@@ -24,8 +24,15 @@ const PreCheck = () => {
 
   const [micLevel, setMicLevel] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+
   useBlockBackNavigation(true);
-  const { isFaceDetected } = useFaceDetection(videoRef, null, null);
+  const {
+    isDetected: isFaceDetected,
+    isCentered,
+    isAligned,
+    isMultiple,
+  } = useFaceDetection(videoRef, null, null);
 
   /* ================= FULLSCREEN MONITOR ================= */
   useEffect(() => {
@@ -54,9 +61,15 @@ const PreCheck = () => {
 
   const verifyAndStartExam = async () => {
     try {
+      if (!capturedImage) {
+        toast.error("Please capture your face first!");
+        return;
+      }
+
       // STEP 1: VERIFY
       const verifyRes = await api.post(
-        `/attempts/verify/${examState.attemptId}`
+        `/attempts/verify/${examState.attemptId}`,
+        { referenceImage: capturedImage }
       );
 
       if (verifyRes.data.message !== "Candidate verified successfully") {
@@ -71,8 +84,14 @@ const PreCheck = () => {
         alert("Failed to start exam");
         return;
       }
-      examState.status = "in_progress";
-      examState.startedAt = new Date().toISOString();
+
+      setExamState((prev) => ({
+        ...prev,
+        status: "in_progress",
+        startedAt: new Date().toISOString(),
+        referenceImage: capturedImage,
+      }));
+
       // STEP 3: NAVIGATE
       navigate(`/exam/${examState.attemptId}`);
     } catch (err) {
@@ -82,10 +101,26 @@ const PreCheck = () => {
   };
 
   const captureFace = () => {
+    if (!isFaceDetected) return toast.warning("No face detected!");
+    if (isMultiple) return toast.warning("Multiple faces detected!");
+    if (!isCentered)
+      return toast.warning("Please center your face in the frame.");
+    if (!isAligned) return toast.warning("Please move closer to the camera.");
+
     const canvas = canvasRef.current;
+    if (!videoRef.current || !canvas) return;
+
+    // Ensure canvas dimensions match video
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+
     const ctx = canvas.getContext("2d");
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+    const image = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(image);
     setChecks((c) => ({ ...c, face: true }));
+    toast.success("Photo captured!");
   };
 
   /* ================= MICROPHONE ================= */
