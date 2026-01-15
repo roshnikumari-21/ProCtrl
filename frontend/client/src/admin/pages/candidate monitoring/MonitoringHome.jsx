@@ -15,36 +15,6 @@ const MonitoringHome = () => {
         </p>
       </div>
 
-      {/* OVERVIEW STATS */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="p-4">
-          <p className="text-xs text-slate-400">Active Tests</p>
-          <p className="text-2xl font-bold text-blue-400">—</p>
-        </Card>
-
-        <Card className="p-4">
-          <p className="text-xs text-slate-400">
-            Active Candidates
-          </p>
-          <p className="text-2xl font-bold text-green-400">—</p>
-        </Card>
-
-        <Card className="p-4">
-          <p className="text-xs text-slate-400">
-            Violations Today
-          </p>
-          <p className="text-2xl font-bold text-red-400">—</p>
-        </Card>
-
-        <Card className="p-4">
-          <p className="text-xs text-slate-400">
-            Avg Integrity Score
-          </p>
-          <p className="text-2xl font-bold text-slate-200">—</p>
-        </Card>
-      </div>
-
-
       {/* TOP-LEVEL TABS */}
       <Card className="p-4 flex gap-4">
         <NavLink
@@ -73,24 +43,6 @@ const MonitoringHome = () => {
           Past Tests
         </NavLink>
       </Card>
-
-      {/* CONTEXT / GUIDANCE */}
-      <div className="text-sm text-slate-400">
-        <p>
-          <strong className="text-slate-300">
-            Active Tests:
-          </strong>{" "}
-          Monitor candidates in real time, view live status, and track
-          violations as they occur.
-        </p>
-        <p className="mt-1">
-          <strong className="text-slate-300">
-            Past Tests:
-          </strong>{" "}
-          Review completed attempts, inspect violation timelines, and
-          download test reports.
-        </p>
-      </div>
 
       {/* CHILD VIEW */}
       <Outlet />

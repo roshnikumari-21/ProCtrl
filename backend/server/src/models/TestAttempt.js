@@ -124,6 +124,11 @@ const testAttemptSchema = new mongoose.Schema(
       default: 0,
     },
 
+    totalMarks: {
+      type: Number,
+      default: 0,
+    },
+
     confidenceScore: {
       type: Number,
       default: 0,
@@ -191,5 +196,21 @@ testAttemptSchema.methods.calculateScore = async function () {
   this.score = totalScore;
   return this.score;
 };
+
+testAttemptSchema.methods.calculateTotalMarks = async function () {
+  const Test = mongoose.model("Test");
+
+  const test = await Test.findById(this.test).populate("questions");
+  if (!test) return 0;
+
+  const totalMarks = test.questions.reduce(
+    (sum, q) => sum + (q.marks || 0),
+    0
+  );
+
+  this.totalMarks = totalMarks;
+  return this.totalMarks;
+};
+
 
 export default mongoose.model("TestAttempt", testAttemptSchema);
