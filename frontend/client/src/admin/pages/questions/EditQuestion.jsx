@@ -77,9 +77,7 @@ const EditQuestion = () => {
 
   if (fetching || !form) {
     return (
-      <div className="p-10 text-slate-400 text-center">
-        Loading question…
-      </div>
+      <div className="p-10 text-slate-400 text-center">Loading question…</div>
     );
   }
 
@@ -89,16 +87,12 @@ const EditQuestion = () => {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <Card className="p-8 space-y-6 bg-slate-900 border-slate-800">
-        <h1 className="text-2xl font-black text-white">
-          Edit Question
-        </h1>
+        <h1 className="text-2xl font-black text-white">Edit Question</h1>
 
         <Input
           label="Question Text"
           value={form.questionText}
-          onChange={(e) =>
-            setForm({ ...form, questionText: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, questionText: e.target.value })}
         />
 
         <div className="flex gap-4">
@@ -187,80 +181,78 @@ const EditQuestion = () => {
             />
 
             {/* Sample Test Cases (Visible) */}
-<div>
-  <h4 className="font-bold text-white mb-2">
-    Sample Test Cases (Visible to candidate)
-  </h4>
+            <div>
+              <h4 className="font-bold text-white mb-2">
+                Sample Test Cases (Visible to candidate)
+              </h4>
 
-  {form.coding.sampleTestCases.map((tc, i) => (
-    <div key={i} className="grid grid-cols-2 gap-4 mb-3">
-      <Textarea
-        placeholder="Input (stdin)"
-        value={tc.input}
-        onChange={(e) => {
-          const arr = [...form.coding.sampleTestCases];
-          arr[i].input = e.target.value;
-          setForm({
-            ...form,
-            coding: { ...form.coding, sampleTestCases: arr },
-          });
-        }}
-      />
-      <Textarea
-        placeholder="Output (stdout)"
-        value={tc.output}
-        onChange={(e) => {
-          const arr = [...form.coding.sampleTestCases];
-          arr[i].output = e.target.value;
-          setForm({
-            ...form,
-            coding: { ...form.coding, sampleTestCases: arr },
-          });
-        }}
-      />
-      <Textarea
-        className="col-span-2"
-        placeholder="Explanation (optional)"
-        value={tc.explanation}
-        onChange={(e) => {
-          const arr = [...form.coding.sampleTestCases];
-          arr[i].explanation = e.target.value;
-          setForm({
-            ...form,
-            coding: { ...form.coding, sampleTestCases: arr },
-          });
-        }}
-      />
-    </div>
-  ))}
+              {form.coding.sampleTestCases.map((tc, i) => (
+                <div key={i} className="grid grid-cols-2 gap-4 mb-3">
+                  <Textarea
+                    placeholder="Input (stdin)"
+                    value={tc.input}
+                    onChange={(e) => {
+                      const arr = [...form.coding.sampleTestCases];
+                      arr[i].input = e.target.value;
+                      setForm({
+                        ...form,
+                        coding: { ...form.coding, sampleTestCases: arr },
+                      });
+                    }}
+                  />
+                  <Textarea
+                    placeholder="Output (stdout)"
+                    value={tc.output}
+                    onChange={(e) => {
+                      const arr = [...form.coding.sampleTestCases];
+                      arr[i].output = e.target.value;
+                      setForm({
+                        ...form,
+                        coding: { ...form.coding, sampleTestCases: arr },
+                      });
+                    }}
+                  />
+                  <Textarea
+                    className="col-span-2"
+                    placeholder="Explanation (optional)"
+                    value={tc.explanation}
+                    onChange={(e) => {
+                      const arr = [...form.coding.sampleTestCases];
+                      arr[i].explanation = e.target.value;
+                      setForm({
+                        ...form,
+                        coding: { ...form.coding, sampleTestCases: arr },
+                      });
+                    }}
+                  />
+                </div>
+              ))}
 
-  <Button
-    variant="secondary"
-    onClick={() =>
-      setForm({
-        ...form,
-        coding: {
-          ...form.coding,
-          sampleTestCases: [
-            ...form.coding.sampleTestCases,
-            { input: "", output: "", explanation: "" },
-          ],
-        },
-      })
-    }
-  >
-    + Add Sample Test Case
-  </Button>
-</div>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    coding: {
+                      ...form.coding,
+                      sampleTestCases: [
+                        ...form.coding.sampleTestCases,
+                        { input: "", output: "", explanation: "" },
+                      ],
+                    },
+                  })
+                }
+              >
+                + Add Sample Test Case
+              </Button>
+            </div>
 
-
-            <h4 className="font-bold text-white">
-              Hidden Test Cases
-            </h4>
+            <h4 className="font-bold text-white">Hidden Test Cases</h4>
 
             {form.coding.hiddenTestCases.map((tc, i) => (
-              <div key={i} className="grid grid-cols-2 gap-4">
+              <div key={i} className="grid grid-cols-2 gap-4 mb-3">
                 <Textarea
+                  placeholder="Input"
                   value={tc.input}
                   onChange={(e) => {
                     const arr = [...form.coding.hiddenTestCases];
@@ -275,6 +267,7 @@ const EditQuestion = () => {
                   }}
                 />
                 <Textarea
+                  placeholder="Expected Output"
                   value={tc.output}
                   onChange={(e) => {
                     const arr = [...form.coding.hiddenTestCases];
@@ -290,75 +283,87 @@ const EditQuestion = () => {
                 />
               </div>
             ))}
+
+            <Button
+              variant="secondary"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  coding: {
+                    ...form.coding,
+                    hiddenTestCases: [
+                      ...form.coding.hiddenTestCases,
+                      { input: "", output: "" },
+                    ],
+                  },
+                })
+              }
+            >
+              + Add Test Case
+            </Button>
           </div>
         )}
 
         <div className="grid grid-cols-3 gap-4">
-  <Input
-    label="Time Limit (ms)"
-    type="number"
-    value={form.coding.timeLimitMs}
-    onChange={(e) =>
-      setForm({
-        ...form,
-        coding: {
-          ...form.coding,
-          timeLimitMs: Number(e.target.value),
-        },
-      })
-    }
-  />
+          <Input
+            label="Time Limit (ms)"
+            type="number"
+            value={form.coding.timeLimitMs}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                coding: {
+                  ...form.coding,
+                  timeLimitMs: Number(e.target.value),
+                },
+              })
+            }
+          />
 
-  <Input
-    label="Memory Limit (MB)"
-    type="number"
-    value={form.coding.memoryLimitMb}
-    onChange={(e) =>
-      setForm({
-        ...form,
-        coding: {
-          ...form.coding,
-          memoryLimitMb: Number(e.target.value),
-        },
-      })
-    }
-  />
+          <Input
+            label="Memory Limit (MB)"
+            type="number"
+            value={form.coding.memoryLimitMb}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                coding: {
+                  ...form.coding,
+                  memoryLimitMb: Number(e.target.value),
+                },
+              })
+            }
+          />
 
-  <div>
-    <label className="text-xs text-slate-400 mb-1 block">
-      Supported Languages
-    </label>
-    <select
-      multiple
-      value={form.coding.supportedLanguages}
-      onChange={(e) =>
-        setForm({
-          ...form,
-          coding: {
-            ...form.coding,
-            supportedLanguages: Array.from(
-              e.target.selectedOptions,
-              (o) => o.value
-            ),
-          },
-        })
-      }
-      className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white h-24"
-    >
-      <option value="cpp">C++</option>
-      <option value="python">Python</option>
-      <option value="java">Java</option>
-    </select>
-  </div>
-</div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">
+              Supported Languages
+            </label>
+            <select
+              multiple
+              value={form.coding.supportedLanguages}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  coding: {
+                    ...form.coding,
+                    supportedLanguages: Array.from(
+                      e.target.selectedOptions,
+                      (o) => o.value
+                    ),
+                  },
+                })
+              }
+              className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white h-24"
+            >
+              <option value="cpp">C++</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+            </select>
+          </div>
+        </div>
 
-
-        <Button
-          fullWidth
-          size="lg"
-          onClick={handleUpdate}
-          disabled={loading}
-        >
+        <Button fullWidth size="lg" onClick={handleUpdate} disabled={loading}>
           {loading ? "Updating..." : "Update Question"}
         </Button>
       </Card>
