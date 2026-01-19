@@ -170,4 +170,249 @@ router.get("/:id", authenticate, authorize("admin"), async (req, res) => {
   res.json(test);
 });
 
+/**
+ * ===============================
+ * UPDATE TEST METADATA
+ * ===============================
+ */
+router.put("/:id", authenticate, authorize("admin"), async (req, res) => {
+  try {
+    const { title, duration, activeTill } = req.body;
+    const updateData = {};
+
+    if (title) updateData.title = title;
+    if (duration) updateData.duration = duration;
+    if (activeTill) {
+      const expiryDate = new Date(activeTill);
+      if (isNaN(expiryDate.getTime()) || expiryDate <= new Date()) {
+        return res
+          .status(400)
+          .json({ message: "Invalid or past activeTill date" });
+      }
+      updateData.activeTill = expiryDate;
+    }
+
+    const test = await Test.findOneAndUpdate(
+      { _id: req.params.id, createdBy: req.user.id },
+      updateData,
+      { new: true }
+    );
+
+    if (!test) {
+      return res.status(404).json({ message: "Test not found" });
+    }
+
+    res.json({ message: "Test updated successfully", test });
+  } catch (err) {
+    console.error("Update test error:", err);
+    res.status(500).json({ message: "Failed to update test" });
+  }
+});
+
+/**
+ * ===============================
+ * ADD CANDIDATES
+ * ===============================
+ */
+router.post(
+  "/:id/candidates",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const { candidates } = req.body; // Array of { email, passcode }
+
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        return res.status(400).json({ message: "No candidates provided" });
+      }
+
+      const test = await Test.findOne({
+        _id: req.params.id,
+        createdBy: req.user.id,
+      });
+
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      const existingEmails = new Set(
+        test.allowedCandidates.map((c) => c.email)
+      );
+      const newCandidates = [];
+
+      for (const entry of candidates) {
+        const { email, passcode } = entry;
+        if (!email || !passcode) continue;
+
+        const normalizedEmail = email.toLowerCase().trim();
+        if (existingEmails.has(normalizedEmail)) continue;
+
+        if (!validateEmail(normalizedEmail)) {
+          continue; // Skip invalid emails or handle error
+        }
+
+        const passcodeHash = await bcrypt.hash(passcode, 10);
+        newCandidates.push({
+          email: normalizedEmail,
+          passcodeHash,
+          hasAttempted: false,
+        });
+      }
+
+      if (newCandidates.length > 0) {
+        test.allowedCandidates.push(...newCandidates);
+        await test.save();
+      }
+
+      res.json({
+        message: `Added ${newCandidates.length} candidates`,
+        test,
+      });
+    } catch (err) {
+      console.error("Add candidates error:", err);
+      res.status(500).json({ message: "Failed to add candidates" });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * REMOVE CANDIDATE
+ * ===============================
+ */
+router.delete(
+  "/:id/candidates",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const test = await Test.findOne({
+        _id: req.params.id,
+        createdBy: req.user.id,
+      });
+
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      const initialLength = test.allowedCandidates.length;
+      test.allowedCandidates = test.allowedCandidates.filter(
+        (c) => c.email !== email.toLowerCase().trim()
+      );
+
+      if (test.allowedCandidates.length === initialLength) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+
+      await test.save();
+
+      res.json({ message: "Candidate removed successfully", test });
+    } catch (err) {
+      console.error("Remove candidate error:", err);
+      res.status(500).json({ message: "Failed to remove candidate" });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * ADD QUESTIONS
+ * ===============================
+ */
+router.post(
+  "/:id/questions",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const { questionIds } = req.body;
+
+      if (!Array.isArray(questionIds) || questionIds.length === 0) {
+        return res.status(400).json({ message: "No questions provided" });
+      }
+
+      const test = await Test.findOne({
+        _id: req.params.id,
+        createdBy: req.user.id,
+      });
+
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      // Add unique
+      const existingIds = new Set(test.questions.map((q) => q.toString()));
+      questionIds.forEach((id) => existingIds.add(id));
+      test.questions = Array.from(existingIds);
+
+      await test.save();
+      await test.calculateTotalScore();
+
+      // Repopulate for frontend
+      const updatedTest = await Test.findById(req.params.id).populate(
+        "questions"
+      );
+
+      res.json({
+        message: "Questions added successfully",
+        test: updatedTest,
+      });
+    } catch (err) {
+      console.error("Add questions error:", err);
+      res.status(500).json({ message: "Failed to add questions" });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * REMOVE QUESTION
+ * ===============================
+ */
+router.delete(
+  "/:id/questions/:questionId",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const { questionId } = req.params;
+
+      const test = await Test.findOne({
+        _id: req.params.id,
+        createdBy: req.user.id,
+      });
+
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      test.questions = test.questions.filter(
+        (q) => q.toString() !== questionId
+      );
+
+      await test.save();
+      await test.calculateTotalScore();
+
+      // Repopulate for frontend
+      const updatedTest = await Test.findById(req.params.id).populate(
+        "questions"
+      );
+
+      res.json({
+        message: "Question removed successfully",
+        test: updatedTest,
+      });
+    } catch (err) {
+      console.error("Remove question error:", err);
+      res.status(500).json({ message: "Failed to remove question" });
+    }
+  }
+);
+
 export default router;

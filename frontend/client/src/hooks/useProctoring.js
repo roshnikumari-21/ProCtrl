@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { reportViolation } from "../services/violations";
 import { captureSnapshot } from "../utils/camera";
+import { verifyFace } from "../services/candidateApi";
 import { toast } from "react-toastify";
 
 const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
@@ -27,6 +28,8 @@ const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
         warningMsg = "Copy/Paste is disabled during the exam.";
       } else if (type === "devtools_detected") {
         warningMsg = "Developer tools detected! This is a severe violation.";
+      } else if (type === "face_mismatch") {
+        warningMsg = "Face verification failed! Please match your ID card.";
       }
 
       toast.warning(warningMsg, {
@@ -73,6 +76,23 @@ const useProctoring = (attemptId, testId, videoRef, isSubmitted = false) => {
         handleViolation("devtools_detected");
       }
     }, 2000);
+
+    const faceCheckInterval = setInterval(async () => {
+      if (videoRef.current) {
+        const image = captureSnapshot(videoRef.current);
+        if (image) {
+          try {
+            const res = await verifyFace(attemptId, image);
+            if (res.data && res.data.match === false) {
+              handleViolation("face_mismatch");
+              clearInterval(faceCheckInterval);
+            }
+          } catch (err) {
+            console.error("Face check error", err);
+          }
+        }
+      }
+    }, 15000);
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
     document.addEventListener("visibilitychange", onVisibilityChange);

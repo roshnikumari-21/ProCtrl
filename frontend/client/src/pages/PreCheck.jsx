@@ -13,9 +13,17 @@ const PreCheck = () => {
   const { examState, setExamState } = useExam();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const [idCard, setIdCard] = useState(
+    examState?.candidate?.idCardImage || null
+  );
+  const [isUploading, setIsUploading] = useState(false);
+
   const [checks, setChecks] = useState({
+    idCard: !!examState?.candidate?.idCardImage,
     camera: false,
     face: false,
+    match: false, // track face match
     microphone: false,
     screen: false,
     network: false,
@@ -27,12 +35,32 @@ const PreCheck = () => {
   const [capturedImage, setCapturedImage] = useState(null);
 
   useBlockBackNavigation(true);
+
+  // Construct URL. Adjust port/host if needed based on environment
+  const idCardUrl = idCard ? `http://localhost:5000/${idCard}` : null;
+
   const {
     isDetected: isFaceDetected,
     isCentered,
     isAligned,
     isMultiple,
-  } = useFaceDetection(videoRef, null, null);
+    isMatch,
+  } = useFaceDetection(videoRef, null, null, idCardUrl);
+
+  // Update idCard check status
+  useEffect(() => {
+    setChecks((prev) => ({ ...prev, idCard: !!idCard }));
+  }, [idCard]);
+
+  // Update match check status
+  useEffect(() => {
+    // Only pass match if detected, single face, and matched
+    if (isFaceDetected && !isMultiple && isMatch) {
+      setChecks((prev) => ({ ...prev, match: true }));
+    } else {
+      setChecks((prev) => ({ ...prev, match: false }));
+    }
+  }, [isFaceDetected, isMultiple, isMatch]);
 
   /* ================= FULLSCREEN MONITOR ================= */
   useEffect(() => {
@@ -59,10 +87,45 @@ const PreCheck = () => {
       .catch(() => {});
   }, []);
 
+  const handleIdUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("idCard", file);
+
+    setIsUploading(true);
+    try {
+      const res = await api.post(
+        `/attempts/upload-id/${examState.attemptId}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      setIdCard(res.data.idCardImage);
+      setExamState((prev) => ({
+        ...prev,
+        candidate: { ...prev.candidate, idCardImage: res.data.idCardImage },
+      }));
+      toast.success("ID Card uploaded!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const verifyAndStartExam = async () => {
     try {
       if (!capturedImage) {
         toast.error("Please capture your face first!");
+        return;
+      }
+
+      if (!checks.match) {
+        toast.error("Face does not match ID Card. Cannot proceed.");
         return;
       }
 
@@ -103,6 +166,8 @@ const PreCheck = () => {
   const captureFace = () => {
     if (!isFaceDetected) return toast.warning("No face detected!");
     if (isMultiple) return toast.warning("Multiple faces detected!");
+    if (!isMatch)
+      return toast.warning("Face does not match ID Card! Cannot capture.");
     if (!isCentered)
       return toast.warning("Please center your face in the frame.");
     if (!isAligned) return toast.warning("Please move closer to the camera.");
@@ -120,7 +185,7 @@ const PreCheck = () => {
     const image = canvas.toDataURL("image/jpeg", 0.8);
     setCapturedImage(image);
     setChecks((c) => ({ ...c, face: true }));
-    toast.success("Photo captured!");
+    toast.success("Photo captured & Verified!");
   };
 
   /* ================= MICROPHONE ================= */
@@ -201,37 +266,113 @@ const PreCheck = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* LEFT */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Camera */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
-                Camera Preview
-              </p>
-
-              <div className="mx-auto w-[340px] aspect-[5/3] bg-black rounded-xl overflow-hidden border border-slate-800">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+            {/* ID Card Upload Section */}
+            {!idCard ? (
+              <div className="bg-amber-900/20 border border-amber-500/50 rounded-2xl p-6 text-center">
+                <h3 className="text-xl font-bold text-amber-500 mb-2">
+                  ID Card Required
+                </h3>
+                <p className="text-sm text-slate-300 mb-4">
+                  Please upload your ID card to proceed with face verification.
+                </p>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIdUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={isUploading}
+                  />
+                  <Button disabled={isUploading}>
+                    {isUploading ? "Uploading..." : "Click to Upload ID"}
+                  </Button>
+                </div>
               </div>
+            ) : (
+              <div className="bg-emerald-900/20 border border-emerald-500/50 rounded-2xl p-5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-6 h-6 text-emerald-500"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-emerald-400">
+                      ID Card Configured
+                    </h3>
+                    <p className="text-xs text-emerald-300/70">
+                      We found your saved ID photo.
+                    </p>
+                  </div>
+                </div>
 
-              <canvas
-                ref={canvasRef}
-                width="320"
-                height="240"
-                className="hidden"
-              />
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIdUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={isUploading}
+                  />
+                  <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition">
+                    {isUploading ? "Updating..." : "Update ID"}
+                  </button>
+                </div>
+              </div>
+            )}
 
-              <Button
-                className="mt-4 w-full"
-                disabled={!checks.camera || !isFaceDetected || checks.face}
-                onClick={captureFace}
-              >
-                Capture Face Image
-              </Button>
-            </div>
+            {/* Camera with ID Check Overlay */}
+            {idCard && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
+                  Camera Preview
+                </p>
+
+                <div className="mx-auto w-[340px] aspect-[5/3] bg-black rounded-xl overflow-hidden border border-slate-800 relative">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  {!isMatch && isFaceDetected && (
+                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      No Match
+                    </div>
+                  )}
+                  {isMatch && isFaceDetected && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                      Matched
+                    </div>
+                  )}
+                </div>
+
+                <canvas
+                  ref={canvasRef}
+                  width="320"
+                  height="240"
+                  className="hidden"
+                />
+
+                <Button
+                  className="mt-4 w-full"
+                  disabled={!checks.camera || !isMatch || checks.face}
+                  onClick={captureFace}
+                >
+                  Capture & Verify Face
+                </Button>
+              </div>
+            )}
 
             {/* Microphone */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -260,7 +401,9 @@ const PreCheck = () => {
             )}
 
             {[
+              ["idCard", "ID Card", "ID Card uploaded successfully"],
               ["camera", "Camera Access", " Make sure Webcam is accessible"],
+              ["match", "Face Verification", "Face matches uploaded ID card"],
               [
                 "face",
                 "Face Capture",

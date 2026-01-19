@@ -25,3 +25,11 @@ export const uploadIDCard = (formData) => {
     },
   });
 };
+
+export const verifyFace = (attemptId, liveImage) => {
+  return candidateApi.post("/attempts/verify-face", { attemptId, liveImage });
+};
+
+export const getProfile = () => {
+  return candidateApi.get("/auth/me");
+};

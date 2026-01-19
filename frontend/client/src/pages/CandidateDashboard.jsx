@@ -3,28 +3,42 @@ import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/UI";
 import { toastInfo, toastSuccess } from "../utils/toast";
 import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
-import { uploadIDCard } from "../services/candidateApi";
+import { uploadIDCard, getProfile } from "../services/candidateApi";
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState(null);
   useBlockBackNavigation(true);
-  useEffect(() => {
-    const stored = localStorage.getItem("candidate_user");
 
-    if (!stored) {
+  useEffect(() => {
+    const storedToken = localStorage.getItem("candidate_token");
+    if (!storedToken) {
       toastInfo("Please login to access your dashboard");
       navigate("/candidate-login");
       return;
     }
 
-    try {
-      setCandidate(JSON.parse(stored));
-    } catch {
-      toastInfo("Session expired. Please login again.");
-      localStorage.removeItem("candidate_user");
-      navigate("/candidate-login");
+    // Load initial state from local storage
+    const storedUser = localStorage.getItem("candidate_user");
+    if (storedUser) {
+      setCandidate(JSON.parse(storedUser));
     }
+
+    // Fetch latest profile from API to sync ID card etc.
+    getProfile()
+      .then((res) => {
+        setCandidate(res.data);
+        localStorage.setItem("candidate_user", JSON.stringify(res.data));
+      })
+      .catch((err) => {
+        console.error("Profile sync failed", err);
+        // If auth fails, redirect
+        if (err.response && err.response.status === 401) {
+          localStorage.removeItem("candidate_token");
+          localStorage.removeItem("candidate_user");
+          navigate("/candidate-login");
+        }
+      });
   }, [navigate]);
 
   const [uploading, setUploading] = useState(false);

@@ -5,7 +5,38 @@ import validateEmail from "../utils/validateEmail.js";
 import bcrypt from "bcryptjs";
 import { authorize } from "../middleware/role.middleware.js";
 import { authenticate } from "../middleware/auth.middleware.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import axios from "axios";
+import FormData from "form-data";
 
+// Configure Multer for ID Card Uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "uploads/id_cards";
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "id_card-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed!"), false);
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -147,6 +178,10 @@ router.post("/join", async (req, res) => {
       });
     }
 
+    /* ---------------- Find User & ID Card ---------------- */
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const idCardImage = user?.idCardImage || null;
+
     /* ----------------- Create attempt ---------------- */
     const attempt = await TestAttempt.create({
       test: test._id,
@@ -157,8 +192,9 @@ router.post("/join", async (req, res) => {
     });
 
     /* ---------------- Respond ---------------- */
-   res.json({
+    res.json({
       attemptId: attempt._id,
+      idCardImage,
       test: {
         testId: test.testId,
         title: test.title,
@@ -169,8 +205,7 @@ router.post("/join", async (req, res) => {
           type: q.type,
           marks: q.marks,
           mcq: q.type === "mcq" ? q.mcq : undefined,
-          descriptive:
-            q.type === "descriptive" ? q.descriptive : undefined,
+          descriptive: q.type === "descriptive" ? q.descriptive : undefined,
           coding:
             q.type === "coding"
               ? {
@@ -186,7 +221,6 @@ router.post("/join", async (req, res) => {
         })),
       },
     });
-
   } catch (err) {
     console.error("Join test error:", err);
     res.status(500).json({
@@ -221,14 +255,63 @@ router.post("/verify/:attemptId", async (req, res) => {
       });
     }
 
-    if (referenceImage) {
-      attempt.referenceImage = referenceImage;
+    if (!referenceImage) {
+      return res
+        .status(400)
+        .json({ message: "Reference image (face capture) is required." });
     }
 
-    attempt.status = "verified";
-    await attempt.save();
+    // --- STRICT SERVER-SIDE FACE MATCHING ---
+    const user = await User.findOne({ email: attempt.candidateEmail });
+    if (!user || !user.idCardImage) {
+      return res.status(400).json({
+        message: "ID Card not found. Please upload ID card first.",
+      });
+    }
 
-    res.json({ message: "Candidate verified successfully" });
+    const idCardPath = path.resolve(user.idCardImage);
+    if (!fs.existsSync(idCardPath)) {
+      return res
+        .status(404)
+        .json({ message: "ID Card file missing on server" });
+    }
+
+    // Call ML Service to verify match
+    try {
+      const formData = new FormData();
+      formData.append("id_image", fs.createReadStream(idCardPath));
+      formData.append("live_image", referenceImage);
+
+      const mlServiceUrl =
+        process.env.ML_SERVICE_URL || "http://localhost:5001";
+
+      const mlRes = await axios.post(`${mlServiceUrl}/match_faces`, formData, {
+        headers: { ...formData.getHeaders() },
+      });
+
+      if (!mlRes.data.match) {
+        return res.status(403).json({
+          message: "Face verification FAILED. Face does not match ID Card.",
+          details: mlRes.data.warning || "Identity mismatch detected.",
+        });
+      }
+
+      // If matched, save proof
+      attempt.referenceImage = referenceImage;
+      attempt.status = "verified";
+      await attempt.save();
+
+      res.json({
+        message: "Candidate verified successfully",
+        confidence: mlRes.data.confidence,
+      });
+    } catch (mlErr) {
+      console.error("ML Verification Error:", mlErr.message);
+      return res.status(500).json({
+        message: "Face verification service unavailable. Please try again.",
+      });
+    }
+    // --- END STRICT MATCHING ---
   } catch (err) {
     console.error("Verification error:", err);
     res.status(500).json({ message: "Verification failed" });
@@ -420,6 +503,113 @@ router.post("/feedback/:attemptId", async (req, res) => {
   } catch (err) {
     console.error("Feedback submit error:", err);
     res.status(500).json({ message: "Failed to submit feedback" });
+  }
+});
+
+/**
+ * ===============================
+ * UPLOAD ID CARD
+ * ===============================
+ */
+router.post(
+  "/upload-id/:attemptId",
+  upload.single("idCard"),
+  async (req, res) => {
+    try {
+      const attempt = await TestAttempt.findById(req.params.attemptId);
+      if (!attempt) {
+        return res.status(404).json({ message: "Attempt not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const imagePath = `uploads/id_cards/${req.file.filename}`;
+
+      // Update or Create User
+      let user = await User.findOne({ email: attempt.candidateEmail });
+      if (!user) {
+        user = new User({
+          name: attempt.candidateName,
+          email: attempt.candidateEmail,
+          role: "candidate",
+          authProvider: "local",
+          password: await bcrypt.hash(Math.random().toString(36).slice(-8), 10),
+          idCardImage: imagePath,
+        });
+      } else {
+        user.idCardImage = imagePath;
+      }
+      await user.save();
+
+      res.json({
+        message: "ID Card uploaded successfully",
+        idCardImage: imagePath,
+      });
+    } catch (err) {
+      console.error("ID Upload error:", err);
+      res.status(500).json({ message: "Failed to upload ID card" });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * VERIFY FACE (ML INTEGRATION)
+ * ===============================
+ */
+router.post("/verify-face", async (req, res) => {
+  const { attemptId, liveImage } = req.body;
+
+  try {
+    const attempt = await TestAttempt.findById(attemptId);
+    if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+
+    const user = await User.findOne({ email: attempt.candidateEmail });
+    if (!user || !user.idCardImage) {
+      return res.status(400).json({ message: "User ID not found" });
+    }
+
+    // Resolve path. user.idCardImage is relative like "uploads/id_cards/..."
+    // We assume the server is running from backend/server/
+    const idCardPath = path.resolve(user.idCardImage);
+
+    if (!fs.existsSync(idCardPath)) {
+      console.error("ID Card file missing:", idCardPath);
+      return res
+        .status(404)
+        .json({ message: "ID card file missing on server" });
+    }
+
+    // Prepare data for ML service
+    const formData = new FormData();
+    formData.append("id_image", fs.createReadStream(idCardPath));
+    formData.append("live_image", liveImage); // base64 string
+
+    // Call ML Service
+    // Ensure ML Service is running
+    const mlServiceUrl = process.env.ML_SERVICE_URL || "http://localhost:5001";
+    const mlResponse = await axios.post(
+      `${mlServiceUrl}/match_faces`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+        },
+      }
+    );
+
+    res.json(mlResponse.data);
+  } catch (error) {
+    console.error("Face verification error:", error.message);
+    // If ML service is down, we shouldn't block the exam completely,
+    // but maybe warn or return success=true (fail open) vs fail closed.
+    // user requested "smooth workflow", "detect violations properly".
+    // I will return the error so frontend knows.
+    res
+      .status(500)
+      .json({ message: "Face verification failed", error: error.message });
   }
 });
 

@@ -58,12 +58,13 @@ const JoinTest = () => {
         passcode: formData.passcode.trim(),
       });
 
-      const { attemptId, test } = res.data;
+      const { attemptId, test, idCardImage } = res.data;
 
       const examPayload = {
         candidate: {
           name: formData.fullName.trim(),
           email: formData.email.toLowerCase().trim(),
+          idCardImage: idCardImage || null,
         },
         test,
         attemptId,
@@ -100,7 +101,7 @@ const JoinTest = () => {
           </div>
 
           <form onSubmit={handleJoin} className="space-y-6" autoComplete="off">
-            <Input label="Full Legal Name" value={formData.fullName} disabled />
+            <Input label="Full Legal Name" value={formData.fullName} disabled/>
 
             <Input
               label="Official Email Address"
