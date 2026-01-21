@@ -106,6 +106,8 @@ export const evaluateCppCode = async ({
     // D. Run Test Cases
     let passed = 0;
     let maxTime = 0;
+    let finalVerdict = "Accepted";
+    let firstError = null;
 
     for (const testCase of hiddenTestCases) {
       const { input, output } = testCase;
@@ -159,50 +161,34 @@ export const evaluateCppCode = async ({
 
       // 1. TLE Check
       if (result.code === 124) {
-        // timeout exit code
-        cleanup();
-        return {
-          verdict: "Time Limit Exceeded",
-          passed,
-          total: hiddenTestCases.length,
-          executionTimeMs: timeLimitMs,
-        };
+        if (finalVerdict === "Accepted") finalVerdict = "Time Limit Exceeded";
       }
-
       // 2. Runtime Error Check
-      if (result.code !== 0) {
-        cleanup();
-        return {
-          verdict: "Runtime Error",
-          passed,
-          total: hiddenTestCases.length,
-          executionTimeMs: maxTime,
-          error: result.errData,
-        };
+      else if (result.code !== 0) {
+        if (finalVerdict === "Accepted") {
+          finalVerdict = "Runtime Error";
+          firstError = result.errData;
+        }
       }
-
       // 3. Logic Check
-      const normalize = (str) => str.replace(/\r/g, "").trim();
+      else {
+        const normalize = (str) => str.replace(/\r/g, "").trim();
 
-      if (normalize(userOutput) === normalize(output)) {
-        passed++;
-      } else {
-        cleanup();
-        return {
-          verdict: "Wrong Answer",
-          passed,
-          total: hiddenTestCases.length,
-          executionTimeMs: maxTime,
-        };
+        if (normalize(userOutput) === normalize(output)) {
+          passed++;
+        } else {
+          if (finalVerdict === "Accepted") finalVerdict = "Wrong Answer";
+        }
       }
     }
 
     cleanup();
     return {
-      verdict: "Accepted",
+      verdict: finalVerdict,
       passed,
       total: hiddenTestCases.length,
-      executionTimeMs: maxTime, // This will now be ~0-20ms
+      executionTimeMs: maxTime,
+      error: firstError,
     };
 
     function cleanup() {

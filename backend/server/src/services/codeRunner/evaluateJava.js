@@ -8,13 +8,20 @@ const CONTAINER_NAME = "java_worker_v1";
 
 const runInContainer = (cmd) => {
   return new Promise((resolve) => {
-    exec(`docker exec ${CONTAINER_NAME} bash -c "${cmd}"`, (error, stdout, stderr) => {
-      resolve({ error, stdout: stdout.trim(), stderr: stderr.trim() });
-    });
+    exec(
+      `docker exec ${CONTAINER_NAME} bash -c "${cmd}"`,
+      (error, stdout, stderr) => {
+        resolve({ error, stdout: stdout.trim(), stderr: stderr.trim() });
+      }
+    );
   });
 };
 
-export const evaluateJavaCode = async ({ code, hiddenTestCases, timeLimitMs = 2000 }) => {
+export const evaluateJavaCode = async ({
+  code,
+  hiddenTestCases,
+  timeLimitMs = 2000,
+}) => {
   const submissionId = uuid();
   const uniqueFolder = `job_${submissionId}`;
   const localSrcPath = path.join(TEMP_DIR, `Main_${submissionId}.java`);
@@ -25,18 +32,29 @@ export const evaluateJavaCode = async ({ code, hiddenTestCases, timeLimitMs = 20
     // Setup folder and copy
     await runInContainer(`mkdir -p /${uniqueFolder}`);
     await new Promise((resolve, reject) => {
-        exec(`docker cp "${localSrcPath}" ${CONTAINER_NAME}:/${uniqueFolder}/Main.java`, (err) => err ? reject(err) : resolve());
+      exec(
+        `docker cp "${localSrcPath}" ${CONTAINER_NAME}:/${uniqueFolder}/Main.java`,
+        (err) => (err ? reject(err) : resolve())
+      );
     });
 
     // Compile
     const compileRes = await runInContainer(`javac /${uniqueFolder}/Main.java`);
     if (compileRes.error) {
-        runInContainer(`rm -rf /${uniqueFolder}`);
-        return { verdict: "Compilation Error", passed: 0, total: hiddenTestCases.length, executionTimeMs: 0, error: compileRes.stderr };
+      runInContainer(`rm -rf /${uniqueFolder}`);
+      return {
+        verdict: "Compilation Error",
+        passed: 0,
+        total: hiddenTestCases.length,
+        executionTimeMs: 0,
+        error: compileRes.stderr,
+      };
     }
 
     let passed = 0;
     let maxTime = 0;
+    let finalVerdict = "Accepted";
+    let firstError = null;
 
     for (const testCase of hiddenTestCases) {
       const { input, output } = testCase;
@@ -55,10 +73,18 @@ EOF
       `;
 
       const result = await new Promise((resolve) => {
-        const child = spawn("docker", ["exec", "-i", CONTAINER_NAME, "bash", "-c", runCmd]);
-        let outData = "", errData = "";
-        child.stdout.on("data", (d) => outData += d.toString());
-        child.stderr.on("data", (d) => errData += d.toString());
+        const child = spawn("docker", [
+          "exec",
+          "-i",
+          CONTAINER_NAME,
+          "bash",
+          "-c",
+          runCmd,
+        ]);
+        let outData = "",
+          errData = "";
+        child.stdout.on("data", (d) => (outData += d.toString()));
+        child.stderr.on("data", (d) => (errData += d.toString()));
         child.on("close", (code) => resolve({ outData, errData, code }));
       });
 
@@ -69,29 +95,34 @@ EOF
       maxTime = Math.max(maxTime, executionTime);
 
       if (result.code === 124) {
-        cleanup();
-        return { verdict: "Time Limit Exceeded", passed, total: hiddenTestCases.length, executionTimeMs: timeLimitMs };
-      }
-      if (result.code !== 0) {
-        cleanup();
-        return { verdict: "Runtime Error", passed, total: hiddenTestCases.length, executionTimeMs: maxTime, error: result.errData };
-      }
-      if (userOutput === output.trim()) {
+        if (finalVerdict === "Accepted") finalVerdict = "Time Limit Exceeded";
+      } else if (result.code !== 0) {
+        if (finalVerdict === "Accepted") {
+          finalVerdict = "Runtime Error";
+          firstError = result.errData;
+        }
+      } else if (userOutput === output.trim()) {
         passed++;
       } else {
-        cleanup();
-        return { verdict: "Wrong Answer", passed, total: hiddenTestCases.length, executionTimeMs: maxTime };
+        if (finalVerdict === "Accepted") finalVerdict = "Wrong Answer";
       }
     }
 
     cleanup();
-    return { verdict: "Accepted", passed, total: hiddenTestCases.length, executionTimeMs: maxTime };
+    return {
+      verdict: finalVerdict,
+      passed,
+      total: hiddenTestCases.length,
+      executionTimeMs: maxTime,
+      error: firstError,
+    };
 
     function cleanup() {
-       runInContainer(`rm -rf /${uniqueFolder}`);
-       try { if (fs.existsSync(localSrcPath)) fs.unlinkSync(localSrcPath); } catch {}
+      runInContainer(`rm -rf /${uniqueFolder}`);
+      try {
+        if (fs.existsSync(localSrcPath)) fs.unlinkSync(localSrcPath);
+      } catch {}
     }
-
   } catch (err) {
     return { verdict: "System Error", error: err.message };
   }

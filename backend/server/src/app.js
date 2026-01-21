@@ -8,7 +8,6 @@ import attemptRoutes from "./routes/attempt.routes.js";
 import codeRoutes from "./routes/code.routes.js";
 import adminMonitoringRoutes from "./routes/adminMonitoring.routes.js";
 
-
 // 1. Change Import: Import the unified worker initializer
 import { initWorkers } from "./services/codeRunner/initWorkers.js";
 import path from "path";
@@ -18,9 +17,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-
-// Serve uploaded files statically
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // 2. Setup Middleware (Move this BEFORE starting server)
 app.use(
@@ -33,6 +29,9 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+
+// Serve uploaded files statically (AFTER CORS middleware)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // 3. Register Routes
 app.get("/test-route", (req, res) => {

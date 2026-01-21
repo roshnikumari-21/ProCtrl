@@ -185,23 +185,20 @@ testAttemptSchema.methods.calculateScore = async function () {
       totalScore += awarded;
     }
 
-    // Coding: award full marks if verdict is 'Accepted' and all test cases passed
+    // Coding: award partial marks based on passed test cases
     if (
       q.type === "coding" &&
       ans.codingAnswer &&
-      ans.codingAnswer.verdict === "Accepted"
+      ans.codingAnswer.totalTestCases > 0
     ) {
-      if (
-        ans.codingAnswer.passedTestCases === ans.codingAnswer.totalTestCases &&
-        ans.codingAnswer.totalTestCases > 0
-      ) {
-        awarded = q.marks;
+      const { passedTestCases, totalTestCases } = ans.codingAnswer;
+      if (passedTestCases > 0) {
+        awarded = (passedTestCases / totalTestCases) * q.marks;
         totalScore += awarded;
       }
     }
 
     ans.marksAwarded = awarded;
-    
   }
 
   this.score = totalScore;
@@ -214,14 +211,10 @@ testAttemptSchema.methods.calculateTotalMarks = async function () {
   const test = await Test.findById(this.test).populate("questions");
   if (!test) return 0;
 
-  const totalMarks = test.questions.reduce(
-    (sum, q) => sum + (q.marks || 0),
-    0
-  );
+  const totalMarks = test.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
   this.totalMarks = totalMarks;
   return this.totalMarks;
 };
-
 
 export default mongoose.model("TestAttempt", testAttemptSchema);

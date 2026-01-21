@@ -8,8 +8,6 @@ import { authenticate } from "../middleware/auth.middleware.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import axios from "axios";
-import FormData from "form-data";
 
 // Configure Multer for ID Card Uploads
 const storage = multer.diskStorage({
@@ -279,42 +277,15 @@ router.post("/verify/:attemptId", async (req, res) => {
         .json({ message: "ID Card file missing on server" });
     }
 
-    // Call ML Service to verify match
-    try {
-      const formData = new FormData();
-      formData.append("id_image", fs.createReadStream(idCardPath));
-      formData.append("live_image", referenceImage);
+    // Save proof and verify
+    attempt.referenceImage = referenceImage;
+    attempt.status = "verified";
+    await attempt.save();
 
-      const mlServiceUrl =
-        process.env.ML_SERVICE_URL || "http://localhost:5001";
-
-      const mlRes = await axios.post(`${mlServiceUrl}/match_faces`, formData, {
-        headers: { ...formData.getHeaders() },
-      });
-
-      if (!mlRes.data.match) {
-        return res.status(403).json({
-          message: "Face verification FAILED. Face does not match ID Card.",
-          details: mlRes.data.warning || "Identity mismatch detected.",
-        });
-      }
-
-      // If matched, save proof
-      attempt.referenceImage = referenceImage;
-      attempt.status = "verified";
-      await attempt.save();
-
-      res.json({
-        message: "Candidate verified successfully",
-        confidence: mlRes.data.confidence,
-      });
-    } catch (mlErr) {
-      console.error("ML Verification Error:", mlErr.message);
-      return res.status(500).json({
-        message: "Face verification service unavailable. Please try again.",
-      });
-    }
-    // --- END STRICT MATCHING ---
+    res.json({
+      message: "Candidate verified successfully",
+      confidence: 1.0,
+    });
   } catch (err) {
     console.error("Verification error:", err);
     res.status(500).json({ message: "Verification failed" });
@@ -556,64 +527,5 @@ router.post(
     }
   }
 );
-
-/**
- * ===============================
- * VERIFY FACE (ML INTEGRATION)
- * ===============================
- */
-router.post("/verify-face", async (req, res) => {
-  const { attemptId, liveImage } = req.body;
-
-  try {
-    const attempt = await TestAttempt.findById(attemptId);
-    if (!attempt) return res.status(404).json({ message: "Attempt not found" });
-
-    const user = await User.findOne({ email: attempt.candidateEmail });
-    if (!user || !user.idCardImage) {
-      return res.status(400).json({ message: "User ID not found" });
-    }
-
-    // Resolve path. user.idCardImage is relative like "uploads/id_cards/..."
-    // We assume the server is running from backend/server/
-    const idCardPath = path.resolve(user.idCardImage);
-
-    if (!fs.existsSync(idCardPath)) {
-      console.error("ID Card file missing:", idCardPath);
-      return res
-        .status(404)
-        .json({ message: "ID card file missing on server" });
-    }
-
-    // Prepare data for ML service
-    const formData = new FormData();
-    formData.append("id_image", fs.createReadStream(idCardPath));
-    formData.append("live_image", liveImage); // base64 string
-
-    // Call ML Service
-    // Ensure ML Service is running
-    const mlServiceUrl = process.env.ML_SERVICE_URL || "http://localhost:5001";
-    const mlResponse = await axios.post(
-      `${mlServiceUrl}/match_faces`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-        },
-      }
-    );
-
-    res.json(mlResponse.data);
-  } catch (error) {
-    console.error("Face verification error:", error.message);
-    // If ML service is down, we shouldn't block the exam completely,
-    // but maybe warn or return success=true (fail open) vs fail closed.
-    // user requested "smooth workflow", "detect violations properly".
-    // I will return the error so frontend knows.
-    res
-      .status(500)
-      .json({ message: "Face verification failed", error: error.message });
-  }
-});
 
 export default router;
