@@ -36,12 +36,16 @@ import CandidateDashboard from "./pages/CandidateDashboard";
 import Results from "./pages/Results";
 import CandidateDetails from "./admin/pages/candidate monitoring/CandidateDetails";
 import AttemptDetails from "./pages/AttemptDetails";
+import LiveCandidates from "./admin/pages/candidate monitoring/LiveCandidates";
+import { LiveStreamsProvider } from "./context/LiveStreamsContext";
+
 
 function App() {
   return (
     <BrowserRouter>
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
         <ExamProvider>
+          <LiveStreamsProvider>
           <Routes>
             {/* =======================
                 Candidate Routes
@@ -93,10 +97,13 @@ function App() {
                   path="monitoring/tests/:id"
                   element={<TestMonitoring />}
                 />
+                <Route path="monitoring/live" element={<LiveCandidates />} />
+
                 <Route path="results" element={<TestResults />} />
               </Route>
             </Route>
           </Routes>
+           </LiveStreamsProvider>
           <ToastContainer
             position="top-right"
             autoClose={4000}

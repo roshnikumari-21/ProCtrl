@@ -238,7 +238,10 @@ router.post("/join", async (req, res) => {
  */
 router.post("/verify/:attemptId", async (req, res) => {
   try {
-    const { referenceImage } = req.body;
+    const referenceImage = req.body?.referenceImage;
+    console.log("HEADERS:", req.headers["content-type"]);
+    console.log("BODY EXISTS:", !!req.body);
+
     const attempt = await TestAttempt.findById(req.params.attemptId);
     if (!attempt) {
       return res.status(404).json({ message: "Attempt not found" });

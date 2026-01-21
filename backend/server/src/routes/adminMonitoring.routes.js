@@ -107,4 +107,45 @@ router.get(
   }
 });
 
+router.get(
+  "/live-candidates",
+  authenticate,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const attempts = await TestAttempt.find({
+        status: "in_progress",
+      })
+        .populate("test", "title duration")
+        .select(
+          "candidateName candidateEmail startedAt integrityScore violations test"
+        )
+        .sort({ startedAt: 1 });
+
+      const formatted = attempts.map((a) => {
+        const elapsedMinutes = Math.floor(
+          (Date.now() - new Date(a.startedAt)) / 60000
+        );
+
+        return {
+          attemptId: a._id,
+          candidateName: a.candidateName,
+          candidateEmail: a.candidateEmail,
+          testTitle: a.test?.title,
+          duration: a.test?.duration,
+          elapsedMinutes,
+          integrityScore: a.integrityScore,
+          violationCount: a.violations.length,
+        };
+      });
+
+      res.json(formatted);
+    } catch (err) {
+      console.error("Live candidates error:", err);
+      res.status(500).json({ message: "Failed to fetch live candidates" });
+    }
+  }
+);
+
+
 export default router;

@@ -12,3 +12,6 @@ export const getAttemptsByTest = (testId) =>
 
 export const getAttemptStatsByTest = (testId) =>
   api.get(`/admin/monitoring/tests/${testId}/attempt-stats`);
+
+export const getLiveCandidates = () =>
+  api.get("/admin/monitoring/live-candidates");

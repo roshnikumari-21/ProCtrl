@@ -132,7 +132,12 @@ const PreCheck = () => {
       // STEP 1: VERIFY
       const verifyRes = await api.post(
         `/attempts/verify/${examState.attemptId}`,
-        { referenceImage: capturedImage }
+        { referenceImage: capturedImage },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
       if (verifyRes.data.message !== "Candidate verified successfully") {

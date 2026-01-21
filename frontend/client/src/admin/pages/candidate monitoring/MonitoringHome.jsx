@@ -6,9 +6,7 @@ const MonitoringHome = () => {
     <div className="max-w-7xl mx-auto p-8 space-y-8">
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-black">
-          Candidate Monitoring
-        </h1>
+        <h1 className="text-2xl font-black">Candidate Monitoring</h1>
         <p className="text-sm text-slate-400 max-w-3xl">
           Monitor candidate activity during live tests, review completed
           attempts, inspect violations, and generate integrity reports.
@@ -42,6 +40,18 @@ const MonitoringHome = () => {
         >
           Past Tests
         </NavLink>
+        <NavLink
+          to="live"
+          className={({ isActive }) =>
+            `px-4 py-2 rounded font-medium transition ${
+              isActive
+                ? "bg-blue-600 text-white"
+                : "text-slate-400 hover:text-white"
+            }`
+          }
+        >
+          Live Candidates
+        </NavLink>
       </Card>
 
       {/* CHILD VIEW */}
@@ -51,4 +61,3 @@ const MonitoringHome = () => {
 };
 
 export default MonitoringHome;
-
