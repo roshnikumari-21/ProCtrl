@@ -6,6 +6,7 @@ import useFaceDetection from "../hooks/useFaceDetection.jsx";
 import api from "../services/api";
 import { toast } from "react-toastify";
 import useBlockBackNavigation from "../hooks/useBlockBackNavigation.js";
+import FaceAlignmentOverlay from "../components/FaceAlignmentOverlay";
 
 const PreCheck = () => {
   const { testId } = useParams();
@@ -39,13 +40,14 @@ const PreCheck = () => {
   // Construct URL. Adjust port/host if needed based on environment
   const idCardUrl = idCard ? `http://localhost:5000/${idCard}` : null;
 
+  const faceStatus = useFaceDetection(videoRef, null, null, idCardUrl);
   const {
     isDetected: isFaceDetected,
     isCentered,
     isAligned,
     isMultiple,
     isMatch,
-  } = useFaceDetection(videoRef, null, null, idCardUrl);
+  } = faceStatus;
 
   // Update idCard check status
   useEffect(() => {
@@ -350,16 +352,8 @@ const PreCheck = () => {
                     playsInline
                     className="w-full h-full object-cover"
                   />
-                  {!isMatch && isFaceDetected && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                      No Match
-                    </div>
-                  )}
-                  {isMatch && isFaceDetected && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                      Matched
-                    </div>
-                  )}
+
+                  <FaceAlignmentOverlay status={faceStatus} />
                 </div>
 
                 <canvas

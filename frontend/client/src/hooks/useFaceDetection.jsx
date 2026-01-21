@@ -143,20 +143,24 @@ const useFaceDetection = (
           isCentered: false,
           isAligned: false,
           isMatch: prev.isMatch,
+          boundingBox: null,
         };
 
         if (count > 1) {
           triggerViolation("multiple_faces", "Multiple faces detected!");
+          status.message = "Multiple faces detected!";
         } else if (count === 0) {
           if (!noFaceStartTime.current) {
             noFaceStartTime.current = Date.now();
           } else if (Date.now() - noFaceStartTime.current > 5000) {
             triggerViolation("face_not_detected", "Face not visible!");
           }
+          status.message = "No face detected";
         } else {
           noFaceStartTime.current = null;
           const face = faces[0];
           const { originX, originY, width, height } = face.boundingBox;
+          status.boundingBox = { x: originX, y: originY, width, height };
           const vW = video.videoWidth;
           const vH = video.videoHeight;
 
@@ -165,6 +169,22 @@ const useFaceDetection = (
           status.isCentered =
             cx > vW * 0.3 && cx < vW * 0.7 && cy > vH * 0.2 && cy < vH * 0.8;
           status.isAligned = width > vW * 0.15;
+
+          // Smart Feedback Generation
+          if (!status.isCentered) {
+            if (cx <= vW * 0.3)
+              status.message =
+                "Move Right"; // If face is on left, move right (assuming non-mirrored for calculation, but typically video is mirrored details pending. Let's assume standard webcam feed which is mirrored)
+            // Actually, standard webcam feed: user moves Right, image moves Right.
+            // If image is on Left (cx low), user needs to move Right to center it.
+            else if (cx >= vW * 0.7) status.message = "Move Left";
+            else if (cy <= vH * 0.2) status.message = "Move Down";
+            else if (cy >= vH * 0.8) status.message = "Move Up";
+          } else if (!status.isAligned) {
+            status.message = "Move Closer";
+          } else {
+            status.message = "Perfect - Hold Still";
+          }
 
           if (embedder && referenceEmbedding.current && status.isAligned) {
             if (Math.random() < 0.05) {
